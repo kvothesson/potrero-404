@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1c1830">
 <title>Potrero 404</title>
+<meta name="description" content="Fútbol con autos en la Ruta 404, de noche, con una Luz Mala de pelota. Online por link, sin cuenta, en la compu o en el celu.">
+<meta property="og:title" content="Potrero 404">
+<meta property="og:description" content="Fútbol con autos en la Ruta 404, de noche, con una Luz Mala de pelota. Online por link, sin cuenta.">
+<meta property="og:url" content="https://kvothesson.com/potrero-404/">
 <style>
   html, body { margin: 0; height: 100%; background: #1c1830; overflow: hidden; }
   body { display: grid; place-items: center; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
@@ -29,10 +33,16 @@
   .boton.salto { grid-area: salto; }
   .boton.freno { grid-area: freno; }
   .icono { width: 36px; height: 36px; image-rendering: pixelated; pointer-events: none; }
+  /* vuelta a la portada de kvothesson.com, chiquita en una esquina */
+  .casa { position: fixed; left: 8px; bottom: 6px; font: 11px/1 ui-monospace, Consolas, monospace; color: #8a84b0;
+    text-decoration: none; opacity: .55; z-index: 1; }
+  .casa:hover, .casa:focus-visible { opacity: 1; color: #fff4b0; }
+  body.tactil .casa { display: none; }
 </style>
 </head>
 <body>
 <canvas id="juego" tabindex="0" aria-label="Potrero 404"></canvas>
+<a class="casa" href="https://kvothesson.com/">kvothesson.com</a>
 <script type="module" src="src/main.js"></script>
 </body>
 </html>

@@ -9,7 +9,9 @@ export function urlServidor() {
   const forzado = new URLSearchParams(location.search).get('servidor');
   if (forzado) return forzado;
   if (globalThis.POTRERO_SERVIDOR) return globalThis.POTRERO_SERVIDOR;
-  return `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`;
+  const local = /^(localhost|127\.0\.0\.1|\[::1\])(:|$)/.test(location.host);
+  if (local) return `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`;
+  return 'wss://potrero-404.kvothesson.workers.dev';   // nube/ en Cloudflare
 }
 
 export function codigoNuevo() {

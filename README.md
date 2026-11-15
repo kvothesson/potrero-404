@@ -77,6 +77,12 @@ Se sacó del fuente de la versión 09 (`Antiguo Ball/09-CarPruebas/src`, mayo de
 | `src/sonido.js` | Sonidos con Web Audio. |
 | `src/main.js` | Teclado y bucle de juego con paso fijo de 1/60 s. |
 
-## Próximo paso: online
+## Online
 
-El plan es jugar online desde el navegador, sin cuenta, compartiendo un link de sala. Cada sala corre la misma `sim.js` en un Durable Object de Cloudflare, con autoridad del servidor, y los jugadores mandan solo sus teclas por WebSocket. Se publica en kvothesson.com.
+- **Dónde está:** el juego se publica con GitHub Pages en https://kvothesson.com/potrero-404/.
+- **Las salas:** corren en Cloudflare (`nube/`, desplegado como `potrero-404` en https://potrero-404.kvothesson.workers.dev). Cada código de sala es un Durable Object que corre la misma `server/sala.js` que el servidor local: la simulación es la misma `src/sim.js`, con autoridad del servidor, y los jugadores mandan solo sus teclas.
+- **Qué servidor usa:** en localhost el juego se conecta al servidor local; publicado, a Cloudflare.
+- **Para desplegar:** `cd nube && cf deploy`. Necesita Node 22.23 o más.
+- **Para probar la red:**
+  - `node server/prueba-red.mjs 5421`: contra el servidor local.
+  - `node server/prueba-red.mjs 443 potrero-404.kvothesson.workers.dev https:`: contra Cloudflare.

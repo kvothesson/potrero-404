@@ -1,7 +1,7 @@
 // Prueba de la red sin navegador: dos clientes entran a la misma sala, uno maneja y se mide
 // cuánto se equivoca la predicción (cuánto salta el auto propio cuando llega el estado
 // del servidor). Uso: node server/prueba-red.mjs [puerto]
-globalThis.location = { search: '', protocol: 'http:', host: `127.0.0.1:${process.argv[2] || 5421}` };
+globalThis.location = { search: '', protocol: process.argv[4] || 'http:', host: process.argv[2] === "443" ? process.argv[3] : `${process.argv[3] || "127.0.0.1"}:${process.argv[2] || 5421}` };
 const { conectar } = await import('../src/red.js');
 
 const codigo = `PRUEBA${Date.now() % 1000}`;
