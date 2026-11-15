@@ -101,6 +101,16 @@ export function revancha(s) {
 }
 
 const rad = (g) => g * Math.PI / 180;
+// Azar que da lo mismo en el navegador y en el servidor: sale del estado, no de Math.random,
+// así la predicción online no se separa.
+function azar(s, sal = 0) {
+  let h = (s.cuadro * 374761393 + Math.round(s.pelota.x * 8) * 668265263 + Math.round(s.pelota.y * 8) * 2246822519 + sal * 3266489917) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+const DESVIO = 0.12;          // cada golpe se tuerce hasta ±7 grados
+const MORDIDA = 4;            // envión de costado al reaparecer
+const SALTO_CUANTICO = 48;    // cuánto se corre la Luz Mala al desaparecer y reaparecer
 const NADA = { up: false, down: false, left: false, right: false, freno: false, nitro: false, salto: false };
 // Las teclas de un jugador en un número (un bit por tecla), para mandarlas por la red.
 const CLAVES = Object.keys(NADA);
@@ -136,12 +146,29 @@ export function paso(s, entradas) {
   vivos.forEach((c) => juntarNitro(s, c));
   const viejo = s.fisica === '2016';
   vivos.forEach((c) => (viejo ? pegarPelota2016 : pegarPelota)(s, c));
+  if (!viejo) mordida(s);
   (viejo ? moverPelota2016 : moverPelota)(s);
   camion(s);
   s.autos.forEach(medir);
   revisarGol(s);
   s.pastillas.forEach((p) => { if (!p.activa && --p.espera <= 0) { p.activa = true; s.eventos.push({ t: 'nitroVuelve' }); } });
   return s;
+}
+
+// Salto cuántico de la Luz Mala: si los dos autos la aprietan a la vez y queda quieta en el
+// medio, desaparece y aparece un poco más al costado (para un lado al azar), con algo de envión.
+function mordida(s) {
+  const b = s.pelota, t = b.tocadaPor;
+  if (!t || s.cuadro - t[0] > 5 || s.cuadro - t[1] > 5) return;
+  if (Math.hypot(b.vx, b.vy) > 3) return;
+  const [a, z] = s.autos;
+  let nx = z.x - a.x, ny = z.y - a.y; const d = Math.hypot(nx, ny) || 1; nx /= d; ny /= d;
+  const lado = azar(s, 9) < 0.5 ? -1 : 1;
+  const desde = { x: b.x, y: b.y };
+  b.x += -ny * lado * SALTO_CUANTICO; b.y += nx * lado * SALTO_CUANTICO;
+  b.vx = -ny * lado * MORDIDA; b.vy = nx * lado * MORDIDA;
+  b.tocadaPor = [-99, -99];
+  s.eventos.push({ t: 'cuantico', desde, hasta: { x: b.x, y: b.y } });
 }
 
 // ---------- El camión ----------
@@ -356,7 +383,12 @@ function pegarPelota(s, c) {
   const extra = Math.min(-vr, 10) * GOLPE_EXTRA * (enElAire ? SALTO_GOLPE : 1) + (enElAire ? 2 : 0);
   b.vx += (j / MASA_PELOTA + extra) * nx; b.vy += (j / MASA_PELOTA + extra) * ny;
   c.vx -= (j / MASA_AUTO) * nx; c.vy -= (j / MASA_AUTO) * ny;
+  // un poco de azar en cada golpe, para que dos golpes iguales no se anulen siempre
+  const a = (azar(s, c.i + 1) - 0.5) * 2 * DESVIO, ca = Math.cos(a), sa = Math.sin(a);
+  [b.vx, b.vy] = [b.vx * ca - b.vy * sa, b.vx * sa + b.vy * ca];
   limitarPelota(b, enElAire ? VEL_MAX_PELOTA * 1.3 : VEL_MAX_PELOTA);
+  b.tocadaPor = b.tocadaPor || [-99, -99];
+  b.tocadaPor[c.i] = s.cuadro;
   if (s.cuadro - (c.ultimoToque || -99) > 6) s.eventos.push({ t: 'toque', quien: c.i, fuerza: Math.hypot(b.vx, b.vy), fuerte: enElAire });
   c.ultimoToque = s.cuadro;
 }

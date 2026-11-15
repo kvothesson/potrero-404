@@ -50,6 +50,7 @@ export function crearSonido() {
       else if (e.t === 'bocina') { tono(155, 0.7, 0.16, 'sawtooth', 150); tono(196, 0.7, 0.12, 'sawtooth', 190); }
       else if (e.t === 'camion') { ruido(2.4, 220, 0.5); tono(70, 2.4, 0.18, 'sawtooth', 40); }
       else if (e.t === 'aplastado') { ruido(0.6, 900, 0.7); ruido(0.35, 3000, 0.3); tono(90, 0.5, 0.2, 'square', 30); }
+      else if (e.t === 'cuantico') { tono(1200, 0.18, 0.1, 'square', 300); tono(300, 0.22, 0.08, 'triangle', 1500); }
       else if (e.t === 'revive') tono(440, 0.25, 0.1, 'triangle', 880);
       else if (e.t === 'tic') tono(440, 0.12, 0.12, 'square');
       else if (e.t === 'arranque') tono(880, 0.3, 0.14, 'square');

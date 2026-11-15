@@ -23,6 +23,12 @@ Esc pausa, R reinicia desde la pausa y M apaga el sonido. Gana el primero en hac
 - **Cancha y cámara:** la cancha es el doble de grande (960×1440) y la cámara sigue a tu auto, mirando un poco hacia adonde va. Arriba a la derecha hay un radar con toda la cancha.
 - **El camión de la Ruta 404:** pasa a lo sumo una vez por partido, en el 60 % de los partidos, entre los 20 y los 70 segundos de juego. Avisa con bocina y un cartel titilando del lado de donde viene. Cruza la cancha de punta a punta: si te agarra te aplasta y volvés a aparecer en tu arco a los 2,5 segundos, y a la Luz Mala la saca volando.
 
+## La Luz Mala no se traba
+
+- **Desvío en cada golpe:** cada golpe a la pelota se tuerce hasta ±7 grados, así dos golpes iguales no se anulan siempre.
+- **Salto cuántico:** si los dos autos la aprietan a la vez y queda quieta en el medio, la Luz Mala pega un salto cuántico. Desaparece dejando un fantasma rojo y celeste, y reaparece 48 unidades al costado, para un lado al azar, con algo de envión.
+- **Azar sincronizado:** el azar sale del estado del juego (`azar()` en `sim.js`), no de `Math.random`, así da lo mismo en el navegador y en el servidor y el online no se desincroniza.
+
 ## Canchas
 
 Cada cancha está en `src/canchas.js`: elige el color de cada parte del fondo y qué decorado lleva.

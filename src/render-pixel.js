@@ -241,7 +241,7 @@ export function crearPintor(canvas, opciones = {}) {
   const octx = oscuro.getContext('2d');
   const marcas = document.createElement('canvas'); marcas.width = WW; marcas.height = WH;
   const mctx = marcas.getContext('2d');
-  const chispas = [];
+  const chispas = [], fantasmas = [];
   let festejo = 0, quienFesteja = -1, temblor = 0;
 
   function ajustar() {
@@ -525,8 +525,23 @@ export function crearPintor(canvas, opciones = {}) {
       if (e.t === 'toque' && e.fuerza > 6) { chispazo(bx(pb.x), by(pb.y), e.fuerte ? 16 : 6, e.fuerte ? '#ffe060' : '#ffffff'); if (e.fuerte) temblor = 6; }
       if (e.t === 'gol') { chispazo(bx(pb.x), by(pb.y), 50, COLOR_AUTO[e.quien].techo); festejo = 150; quienFesteja = e.quien === 0 ? 1 : 0; temblor = 12; }
       if (e.t === 'nitro') { const c = s.autos[e.quien]; chispazo(bx(c.x), by(c.y), e.grande ? 12 : 4, P.nitro[1]); }
+      if (e.t === 'cuantico') {
+        fantasmas.push({ x: bx(e.desde.x), y: by(e.desde.y), vida: 24 });
+        chispazo(bx(e.hasta.x), by(e.hasta.y), 18, '#b4ffd0'); chispazo(bx(e.desde.x), by(e.desde.y), 10, '#40dcff');
+        temblor = Math.max(temblor, 4);
+      }
       if (e.t === 'aterriza') { const c = s.autos[e.quien]; chispazo(bx(c.x), by(c.y) + 2, 6, '#c8c0a8'); }
       if (e.t === 'choque' || e.t === 'choqueAutos') temblor = Math.max(temblor, 3);
+    }
+    // la Luz Mala que se fue: queda un fantasma que se desarma en rojo y celeste
+    for (let k = fantasmas.length - 1; k >= 0; k--) {
+      const f = fantasmas[k]; if (--f.vida <= 0) { fantasmas.splice(k, 1); continue; }
+      const sep = (24 - f.vida) >> 2;
+      b.globalAlpha = f.vida / 24;
+      b.fillStyle = '#ff2860'; b.fillRect(Math.round(f.x) - 4 - sep, Math.round(f.y) - 4, 8, 8);
+      b.fillStyle = '#28dcff'; b.fillRect(Math.round(f.x) - 4 + sep, Math.round(f.y) - 4, 8, 8);
+      b.fillStyle = '#ffffff'; b.fillRect(Math.round(f.x) - 2, Math.round(f.y) - 2 + ((f.vida & 2) ? 1 : -1), 4, 4);
+      b.globalAlpha = 1;
     }
     for (let k = chispas.length - 1; k >= 0; k--) {
       const p = chispas[k]; p.x += p.vx; p.y += p.vy; p.vx *= 0.93; p.vy *= 0.93;
