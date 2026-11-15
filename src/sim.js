@@ -31,6 +31,9 @@ const ROCE_PELOTA = 0.008, AIRE_PELOTA = 0.003;
 const VEL_MAX_PELOTA = 14;
 const NITRO_MAX = 100, NITRO_INICIAL = 40, NITRO_GASTO = 0.7;  // la barra llena dura unos 2,4 s
 const AGARRE = 0.55;                   // cuánto de la velocidad de costado sobrevive por cuadro
+// Salto (el "dodge" de Rocket League): un envión corto para adelante, al costado o para atrás
+// según lo que apretás. En el aire no hay agarre y el golpe a la pelota es mucho más fuerte.
+const SALTO_DURA = 22, SALTO_RECARGA = 70, SALTO_ENVION = 4.6, SALTO_GOLPE = 2.6;
 const CUENTA = 3 * FPS;                // timeRespawn de Main.as
 const FESTEJO = 1.2 * FPS;
 const NITRO_RESPAWN = 5 * FPS;         // timeRespawn de Nitro.as
@@ -77,7 +80,8 @@ export function nuevoEstado() {
 function reubicar(s) {
   s.autos.forEach((c, i) => {
     const sp = AUTOS[i].spawn;
-    Object.assign(c, { x: sp.x, y: sp.y, rot: sp.rot, vx: 0, vy: 0, vel: 0, lat: 0, frenoActivo: false, nitroActivo: false });
+    Object.assign(c, { x: sp.x, y: sp.y, rot: sp.rot, vx: 0, vy: 0, vel: 0, lat: 0, frenoActivo: false, nitroActivo: false,
+      salto: 0, recarga: 0, saltoAntes: true });
   });
   Object.assign(s.pelota, { x: W / 2, y: H / 2, vx: 0, vy: 0 });
 }
@@ -88,7 +92,7 @@ export function revancha(s) {
 }
 
 const rad = (g) => g * Math.PI / 180;
-const NADA = { up: false, down: false, left: false, right: false, freno: false, nitro: false };
+const NADA = { up: false, down: false, left: false, right: false, freno: false, nitro: false, salto: false };
 
 // Avanza un cuadro. entradas: [jugador0, jugador1] con {up, down, left, right, freno, nitro}.
 export function paso(s, entradas) {
@@ -135,6 +139,30 @@ function manejar(s, c, a, e) {
   c.frenoActivo = e.freno;
 
   let co = Math.cos(rad(c.rot)), si = Math.sin(rad(c.rot));
+
+  // Salto: se dispara al apretar (no al mantener) y tiene recarga.
+  if (c.recarga > 0) c.recarga--;
+  if (e.salto && !c.saltoAntes && c.recarga === 0 && c.salto === 0) {
+    const lado = (e.right ? 1 : 0) - (e.left ? 1 : 0), atras = e.down && !e.up;
+    let dx = atras ? -1 : (lado ? 0 : 1), dy = lado;     // en coordenadas del auto
+    const n = Math.hypot(dx, dy); dx /= n; dy /= n;
+    c.vx += (co * dx - si * dy) * SALTO_ENVION; c.vy += (si * dx + co * dy) * SALTO_ENVION;
+    c.salto = SALTO_DURA; c.recarga = SALTO_RECARGA;
+    c.saltoTipo = atras ? 'atras' : lado ? (lado > 0 ? 'derecha' : 'izquierda') : 'adelante';
+    s.eventos.push({ t: 'salto', quien: c.i });
+  }
+  c.saltoAntes = !!e.salto;
+  if (c.salto > 0) {
+    // en el aire: sin motor ni agarre, sigue de largo y se puede girar un poco
+    c.salto--;
+    const quiere = (e.right ? 1 : 0) - (e.left ? 1 : 0);
+    if (c.saltoTipo === 'adelante' || c.saltoTipo === 'atras') c.rot = (((c.rot + quiere * 1.5) % 360) + 360) % 360;
+    c.vx *= 0.995; c.vy *= 0.995;
+    c.x += c.vx; c.y += c.vy;
+    if (c.salto === 0) s.eventos.push({ t: 'aterriza', quien: c.i });
+    return;
+  }
+
   let f = c.vx * co + c.vy * si;       // hacia adelante
   let l = -c.vx * si + c.vy * co;      // de costado
 
@@ -263,17 +291,18 @@ function pegarPelota(s, c) {
   const vr = (b.vx - c.vx) * nx + (b.vy - c.vy) * ny;
   if (vr >= 0) return;
   const j = -(1 + REBOTE_PELOTA_AUTO) * vr / (1 / MASA_PELOTA + 1 / MASA_AUTO);
-  const extra = Math.min(-vr, 10) * GOLPE_EXTRA;
+  const enElAire = c.salto > 0;
+  const extra = Math.min(-vr, 10) * GOLPE_EXTRA * (enElAire ? SALTO_GOLPE : 1) + (enElAire ? 2 : 0);
   b.vx += (j / MASA_PELOTA + extra) * nx; b.vy += (j / MASA_PELOTA + extra) * ny;
   c.vx -= (j / MASA_AUTO) * nx; c.vy -= (j / MASA_AUTO) * ny;
-  limitarPelota(b);
-  if (s.cuadro - (c.ultimoToque || -99) > 6) s.eventos.push({ t: 'toque', quien: c.i, fuerza: Math.hypot(b.vx, b.vy) });
+  limitarPelota(b, enElAire ? VEL_MAX_PELOTA * 1.3 : VEL_MAX_PELOTA);
+  if (s.cuadro - (c.ultimoToque || -99) > 6) s.eventos.push({ t: 'toque', quien: c.i, fuerza: Math.hypot(b.vx, b.vy), fuerte: enElAire });
   c.ultimoToque = s.cuadro;
 }
 
-function limitarPelota(b) {
+function limitarPelota(b, max = VEL_MAX_PELOTA) {
   const v = Math.hypot(b.vx, b.vy);
-  if (v > VEL_MAX_PELOTA) { b.vx *= VEL_MAX_PELOTA / v; b.vy *= VEL_MAX_PELOTA / v; }
+  if (v > max) { b.vx *= max / v; b.vy *= max / v; }
 }
 
 function moverPelota(s) {

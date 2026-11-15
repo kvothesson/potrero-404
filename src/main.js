@@ -10,9 +10,10 @@ let portada = true, pausa = false;
 
 // Teclas por jugador, con las del original y alternativas cómodas.
 const TECLAS = [
-  { up: ['KeyW'], down: ['KeyS'], left: ['KeyA'], right: ['KeyD'], freno: ['ShiftLeft', 'KeyC', 'KeyK'], nitro: ['Space', 'KeyV', 'KeyL'] },
+  { up: ['KeyW'], down: ['KeyS'], left: ['KeyA'], right: ['KeyD'], freno: ['ShiftLeft', 'KeyC', 'KeyK'], nitro: ['Space', 'KeyV', 'KeyL'],
+    salto: ['KeyE', 'KeyF'] },
   { up: ['ArrowUp'], down: ['ArrowDown'], left: ['ArrowLeft'], right: ['ArrowRight'],
-    freno: ['ShiftRight', 'Period', 'Numpad0'], nitro: ['ControlRight', 'Slash', 'NumpadDecimal'] },
+    freno: ['ShiftRight', 'Period', 'Numpad0'], nitro: ['ControlRight', 'Slash', 'NumpadDecimal'], salto: ['Enter', 'NumpadEnter'] },
 ];
 const apretadas = new Set();
 const DE_JUEGO = new Set(TECLAS.flatMap((t) => Object.values(t).flat()));

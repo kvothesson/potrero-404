@@ -8,10 +8,12 @@ Nombre de trabajo: se puede cambiar.
 
 Abrir `abrir.cmd`, que sirve la carpeta en http://127.0.0.1:5421/.
 
-| | Manejar | Freno de mano | Nitro |
-|---|---|---|---|
-| Azul (más ágil) | W A S D | Shift izq., C o K | Espacio, V o L |
-| Rojo (más rápido) | Flechas | Shift der., punto o 0 del teclado numérico | Ctrl der., barra o punto del teclado numérico |
+| | Manejar | Freno de mano | Nitro | Salto |
+|---|---|---|---|---|
+| Azul (más ágil) | W A S D | Shift izq., C o K | Espacio, V o L | E o F |
+| Rojo (más rápido) | Flechas | Shift der., punto o 0 del teclado numérico | Ctrl der., barra o punto del teclado numérico | Enter |
+
+El salto es el *dodge* de Rocket League: solo va para adelante, con doblar va al costado y con atrás va para atrás. Mientras dura no hay agarre y el golpe a la pelota sale casi al doble de fuerte. Tiene una recarga de poco más de un segundo, que se ve en el punto blanco junto a la barra de nitro.
 
 Esc pausa, R reinicia desde la pausa y M apaga el sonido. Gana el primero en hacer 3 goles.
 

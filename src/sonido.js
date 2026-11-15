@@ -45,6 +45,8 @@ export function crearSonido() {
       else if (e.t === 'choque' || e.t === 'choqueAutos') ruido(0.18, 500, 0.45);
       else if (e.t === 'nitro') tono(e.grande ? 520 : 700, 0.15, 0.12, 'triangle', e.grande ? 1040 : 900);
       else if (e.t === 'derrape') ruido(0.25, 2500, 0.08);
+      else if (e.t === 'salto') { tono(220, 0.18, 0.1, 'sine', 440); ruido(0.15, 3000, 0.1); }
+      else if (e.t === 'aterriza') ruido(0.08, 400, 0.2);
       else if (e.t === 'tic') tono(440, 0.12, 0.12, 'square');
       else if (e.t === 'arranque') tono(880, 0.3, 0.14, 'square');
       else if (e.t === 'gol') { [523, 659, 784, 1047].forEach((f, k) => setTimeout(() => tono(f, 0.35, 0.12, 'square'), k * 90)); ruido(1.2, 1800, 0.25); }

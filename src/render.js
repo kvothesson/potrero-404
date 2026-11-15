@@ -86,8 +86,14 @@ export function crearPintor(canvas) {
   function auto(c, a, t) {
     ctx.save();
     ctx.translate(c.x, c.y); ctx.rotate(c.rot * Math.PI / 180);
-    // sombra
-    ctx.fillStyle = 'rgba(0,0,0,.35)'; redondo(-20, -9, 44, 24, 6); ctx.fill();
+    // salto: la sombra se aleja, el auto crece y da la vuelta en el aire
+    const fase = c.salto > 0 ? 1 - c.salto / 22 : 0, alto = Math.sin(Math.PI * fase);
+    ctx.fillStyle = `rgba(0,0,0,${0.35 - alto * 0.15})`; redondo(-20 + alto * 6, -9 + alto * 10, 44, 24, 6); ctx.fill();
+    if (alto > 0) {
+      const vuelta = Math.abs(Math.cos(Math.PI * fase)) * 0.75 + 0.25;
+      const lateral = c.saltoTipo === 'izquierda' || c.saltoTipo === 'derecha';
+      ctx.scale((1 + alto * 0.28) * (lateral ? 1 : vuelta), (1 + alto * 0.28) * (lateral ? vuelta : 1));
+    }
     // fuego del nitro
     if (c.nitroActivo) {
       const largo = 14 + Math.random() * 12;
@@ -145,6 +151,11 @@ export function crearPintor(canvas) {
       ctx.fillStyle = c.nitroActivo ? '#fff3c4' : '#ffb02e';
       const h = alto * c.nitro / 100; ctx.fillRect(x, y0 + alto - h, 8, h);
       ctx.fillStyle = AUTOS[i].color; ctx.fillRect(x, y0 - 6, 8, 4);
+      // salto listo: punto lleno; recargando: aro
+      const yy = i === 0 ? y0 - 16 : y0 + alto + 12;
+      ctx.beginPath(); ctx.arc(x + 4, yy, 4, 0, Math.PI * 2);
+      if (!c.recarga) { ctx.fillStyle = '#fff'; ctx.fill(); }
+      else { ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 1.5; ctx.stroke(); }
     });
   }
 
@@ -165,7 +176,8 @@ export function crearPintor(canvas) {
 
   function efectos(s) {
     for (const e of s.eventos) {
-      if (e.t === 'toque' && e.fuerza > 6) chispazo(s.pelota.x, s.pelota.y, 8, '#fff');
+      if (e.t === 'toque' && e.fuerza > 6) chispazo(s.pelota.x, s.pelota.y, e.fuerte ? 22 : 8, e.fuerte ? '#ffe680' : '#fff');
+      if (e.t === 'aterriza') { const c = s.autos[e.quien]; chispazo(c.x, c.y, 8, 'rgba(200,200,190,.8)'); }
       if (e.t === 'gol') chispazo(s.pelota.x, s.pelota.y, 60, AUTOS[e.quien].color);
       if (e.t === 'nitro') { const c = s.autos[e.quien]; chispazo(c.x, c.y, e.grande ? 18 : 6, '#ffb02e'); }
     }
@@ -212,10 +224,12 @@ export function crearPintor(canvas) {
       ctx.fillStyle = 'rgba(255,255,255,.88)'; ctx.font = '500 16px system-ui, sans-serif';
       lineas.forEach((l, k) => ctx.fillText(l, W / 2, y + 28 + k * 22));
     };
-    fila(290, AUTOS[0].color, 'Azul · más ágil', ['W A S D para manejar', 'Shift izq. o C: freno de mano', 'Espacio o V: nitro']);
-    fila(430, AUTOS[1].color, 'Rojo · más rápido', ['Flechas para manejar', 'Shift der. o punto: freno de mano', 'Ctrl der. o barra: nitro']);
+    fila(270, AUTOS[0].color, 'Azul · más ágil', ['W A S D para manejar', 'Shift izq. o C: freno de mano', 'Espacio o V: nitro', 'E o F: salto']);
+    fila(420, AUTOS[1].color, 'Rojo · más rápido', ['Flechas para manejar', 'Shift der. o punto: freno de mano', 'Ctrl der. o barra: nitro', 'Enter: salto']);
+    ctx.fillStyle = 'rgba(255,255,255,.6)'; ctx.font = '500 13px system-ui, sans-serif';
+    ctx.fillText('Salto + doblar: salto al costado · salto + atrás: para atrás', W / 2, 545);
     ctx.fillStyle = '#ffb02e'; ctx.font = '700 22px system-ui, sans-serif';
-    ctx.fillText(`Gana el primero en hacer ${GOLES_PARA_GANAR} goles`, W / 2, 570);
+    ctx.fillText(`Gana el primero en hacer ${GOLES_PARA_GANAR} goles`, W / 2, 582);
     ctx.fillStyle = '#fff'; ctx.font = '800 24px system-ui, sans-serif';
     ctx.fillText((Date.now() / 500 | 0) % 2 ? 'Enter para jugar' : '', W / 2, 625);
     ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.font = '500 13px system-ui, sans-serif';
