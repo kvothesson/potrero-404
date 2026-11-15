@@ -19,7 +19,7 @@ Esc pausa, R reinicia desde la pausa y M apaga el sonido. Gana el primero en hac
 
 Se sacó del fuente de la versión 09 (`Antiguo Ball/09-CarPruebas/src`, mayo de 2016):
 
-- **Autos:** el azul dobla mejor y el rojo corre más, con las mismas velocidades máximas (5 y 6).
+- **Autos:** el azul dobla mejor y el rojo corre más, como en el original (velocidad máxima 5 y 5,6).
 - **Manejo:** el freno de mano gira más y le saca velocidad.
 - **Nitro:** arranca en 30, el tope es 100 y se gasta 2 por cuadro.
 - **Pastillas de nitro:** 4 grandes que dan 100, 6 chicas que dan 10, y vuelven a los 5 segundos.
