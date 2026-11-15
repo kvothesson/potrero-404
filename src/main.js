@@ -1,9 +1,11 @@
 import { FPS, nuevoEstado, paso, revancha } from './sim.js';
-import { crearPintor } from './render.js';
+import { crearPintor as pintorLiso } from './render.js';
+import { crearPintor as pintorPixel } from './render-pixel.js';
 import { crearSonido } from './sonido.js';
 
+// Arte en pixel a lo Super Nintendo; con ?liso se ve el dibujo vectorial anterior.
 const canvas = document.getElementById('juego');
-const pintor = crearPintor(canvas);
+const pintor = (new URLSearchParams(location.search).has('liso') ? pintorLiso : pintorPixel)(canvas);
 const sonido = crearSonido();
 let estado = nuevoEstado();
 let portada = true, pausa = false;
@@ -57,4 +59,7 @@ function cuadro(ahora) {
 requestAnimationFrame(cuadro);
 
 // para pruebas automáticas desde la consola
-window.autobol = { get estado() { return estado; }, paso: (e) => paso(estado, e), empezar: () => { portada = false; revancha(estado); } };
+window.autobol = {
+  get estado() { return estado; }, paso: (e) => paso(estado, e), empezar: () => { portada = false; revancha(estado); },
+  dibujar: () => pintor.dibujar(estado, { portada, pausa }),
+};

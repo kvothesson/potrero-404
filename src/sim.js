@@ -104,6 +104,7 @@ export function paso(s, entradas) {
       if (s.ganador >= 0) { s.fase = 'fin'; s.eventos.push({ t: 'fin', quien: s.ganador }); }
       else { reubicar(s); s.fase = 'cuenta'; s.reloj = CUENTA; }
     }
+    s.pelota.vx *= 0.9; s.pelota.vy *= 0.9;   // que quede en la red y no vuelva a salir
     moverPelota(s);
     return s;
   }
