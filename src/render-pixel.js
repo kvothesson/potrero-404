@@ -7,7 +7,11 @@ import { CANCHAS, hash } from './canchas.js';
 // Sin palabras en pantalla: todo se dice con colores, números, íconos y teclas dibujadas,
 // para que se entienda en cualquier idioma.
 
-const BW = 272, BH = 400, OX = 16, OY = 20, K = 0.5;     // buffer y paso de sim a buffer
+// BW×BH es lo que se ve en pantalla. El mundo (WW×WH) es más grande: la cancha más el
+// escenario de los costados, y la cámara sigue a tu auto.
+const BW = 272, BH = 400, K = 0.5;
+const OX = 70, OY = 60;                                     // margen de escenario alrededor de la cancha
+const WW = Math.round(W * K) + OX * 2, WH = Math.round(H * K) + OY * 2;
 const bx = (x) => OX + x * K, by = (y) => OY + y * K;
 
 const P = {
@@ -131,8 +135,8 @@ function spritesPelota() {
 // ---------- cancha fija: el piso, las líneas, las paredes en tres cuartos y lo de afuera ----------
 // Se decide la categoría de cada píxel y la cancha elige su color (ver canchas.js).
 function fondoFijo(cancha) {
-  const cv = document.createElement('canvas'); cv.width = BW; cv.height = BH;
-  const g = cv.getContext('2d'), img = g.createImageData(BW, BH), d = img.data;
+  const cv = document.createElement('canvas'); cv.width = WW; cv.height = WH;
+  const g = cv.getContext('2d'), img = g.createImageData(WW, WH), d = img.data;
   const poly = paredes().puntos.map(([x, y]) => [bx(x), by(y)]);
   const adentro = (x, y) => {
     let ok = false;
@@ -142,10 +146,10 @@ function fondoFijo(cancha) {
     }
     return ok;
   };
-  const M = new Uint8Array(BW * BH);
-  for (let y = 0; y < BH; y++) for (let x = 0; x < BW; x++) M[y * BW + x] = adentro(x + 0.5, y + 0.5) ? 1 : 0;
-  const m = (x, y) => (x < 0 || y < 0 || x >= BW || y >= BH ? 0 : M[y * BW + x]);
-  const pon = (x, y, c) => { const i = (y * BW + x) * 4; d[i] = c[0]; d[i + 1] = c[1]; d[i + 2] = c[2]; d[i + 3] = 255; };
+  const M = new Uint8Array(WW * WH);
+  for (let y = 0; y < WH; y++) for (let x = 0; x < WW; x++) M[y * WW + x] = adentro(x + 0.5, y + 0.5) ? 1 : 0;
+  const m = (x, y) => (x < 0 || y < 0 || x >= WW || y >= WH ? 0 : M[y * WW + x]);
+  const pon = (x, y, c) => { const i = (y * WW + x) * 4; d[i] = c[0]; d[i + 1] = c[1]; d[i + 2] = c[2]; d[i + 3] = 255; };
 
   const T = by(CAMPO.T), B = by(CAMPO.B), cx = bx(W / 2), cy = by(H / 2);
   const g0 = bx(W / 2 - CAMPO.arcoAncho / 2), g1 = bx(W / 2 + CAMPO.arcoAncho / 2);
@@ -162,9 +166,9 @@ function fondoFijo(cancha) {
     if (x >= X0 && x <= X1 && (y === HT || y === HB)) return true;
     return false;
   };
-  const info = { BW, BH, OY, cx: Math.round(cx), ruta0: Math.round(bx(CAMPO.L)), ruta1: Math.round(bx(CAMPO.R)) };
+  const info = { BW: WW, BH: WH, OY, cx: Math.round(cx), ruta0: Math.round(bx(CAMPO.L)), ruta1: Math.round(bx(CAMPO.R)) };
 
-  for (let y = 0; y < BH; y++) for (let x = 0; x < BW; x++) {
+  for (let y = 0; y < WH; y++) for (let x = 0; x < WW; x++) {
     const px = x + 0.5, py = y + 0.5;
     let cat;
     if (m(x, y)) {
@@ -194,10 +198,10 @@ function fondoFijo(cancha) {
 // Hombres-Tanque: gauchos de silicio quietos en la banquina, del otro lado del alambrado.
 function armarHombres(M) {
   const lugares = [];
-  const libre = (x, y) => { for (let a = -6; a <= 6; a++) for (let c = -8; c <= 12; c++) { const xx = x + a, yy = y + c; if (xx < 0 || yy < 0 || xx >= BW || yy >= BH || M[yy * BW + xx]) return false; } return true; };
-  const cerca = (x, y) => { for (let a = -14; a <= 14; a += 2) for (let c = -12; c <= 16; c += 2) { const xx = x + a, yy = y + c; if (xx >= 0 && yy >= 0 && xx < BW && yy < BH && M[yy * BW + xx]) return true; } return false; };
-  for (let k = 0; k < 600 && lugares.length < 12; k++) {
-    const x = 4 + Math.floor(hash(k, 7, 21) * (BW - 8)), y = 6 + Math.floor(hash(k, 8, 21) * (BH - 20));
+  const libre = (x, y) => { for (let a = -6; a <= 6; a++) for (let c = -8; c <= 12; c++) { const xx = x + a, yy = y + c; if (xx < 0 || yy < 0 || xx >= WW || yy >= WH || M[yy * WW + xx]) return false; } return true; };
+  const cerca = (x, y) => { for (let a = -14; a <= 14; a += 2) for (let c = -12; c <= 16; c += 2) { const xx = x + a, yy = y + c; if (xx >= 0 && yy >= 0 && xx < WW && yy < WH && M[yy * WW + xx]) return true; } return false; };
+  for (let k = 0; k < 3000 && lugares.length < 26; k++) {
+    const x = 4 + Math.floor(hash(k, 7, 21) * (WW - 8)), y = 6 + Math.floor(hash(k, 8, 21) * (WH - 20));
     if (!libre(x, y) || !cerca(x, y)) continue;
     if (lugares.some((o) => Math.abs(o.x - x) < 14 && Math.abs(o.y - y) < 18)) continue;
     lugares.push({ x, y, fase: hash(k, 9, 21) * 6.28, gota: 0 });
@@ -210,11 +214,11 @@ function armarPublico(M) {
   const gente = [];
   let semilla = 7;
   const azar = () => ((semilla = (semilla * 16807) % 2147483647) / 2147483647);
-  for (let y = 2; y < BH - 4; y += 4) for (let x = 1; x < BW - 2; x += 3) {
+  for (let y = 2; y < WH - 4; y += 4) for (let x = 1; x < WW - 2; x += 3) {
     let libre = true;
     for (let a = -2; a <= 3 && libre; a++) for (let b = -2; b <= 4; b++) {
       const xx = x + a, yy = y + b;
-      if (xx >= 0 && yy >= 0 && xx < BW && yy < BH && M[yy * BW + xx]) { libre = false; break; }
+      if (xx >= 0 && yy >= 0 && xx < WW && yy < WH && M[yy * WW + xx]) { libre = false; break; }
     }
     if (!libre || azar() < 0.35) continue;
     gente.push({ x: x + (azar() < 0.5 ? 0 : 1), y, ropa: P.publico[(azar() * P.publico.length) | 0], piel: P.piel[(azar() * 3) | 0], fase: azar() * 6.28,
@@ -235,7 +239,7 @@ export function crearPintor(canvas, opciones = {}) {
   const pelotas = cancha.pelota === 'luzMala' ? spritesLuzMala() : spritesPelota();
   const oscuro = document.createElement('canvas'); oscuro.width = BW; oscuro.height = BH;
   const octx = oscuro.getContext('2d');
-  const marcas = document.createElement('canvas'); marcas.width = BW; marcas.height = BH;
+  const marcas = document.createElement('canvas'); marcas.width = WW; marcas.height = WH;
   const mctx = marcas.getContext('2d');
   const chispas = [];
   let festejo = 0, quienFesteja = -1, temblor = 0;
@@ -305,9 +309,9 @@ export function crearPintor(canvas, opciones = {}) {
 
   // Píxeles muertos de la Ruta 404: cuadrados negros que titilan y a veces se corren de color.
   const muertos = [];
-  for (let k = 0; muertos.length < 14 && k < 300; k++) {
-    const x = Math.floor(hash(k, 1, 77) * BW), y = Math.floor(hash(k, 2, 77) * BH);
-    if (!M[y * BW + x] || (Math.abs(y - by(H / 2)) < 30 && Math.abs(x - bx(W / 2)) < 30)) continue;
+  for (let k = 0; muertos.length < 34 && k < 900; k++) {
+    const x = Math.floor(hash(k, 1, 77) * WW), y = Math.floor(hash(k, 2, 77) * WH);
+    if (!M[y * WW + x] || (Math.abs(y - by(H / 2)) < 30 && Math.abs(x - bx(W / 2)) < 30)) continue;
     muertos.push({ x, y, t: 2 + Math.floor(hash(k, 3, 77) * 4), fase: Math.floor(hash(k, 4, 77) * 200) });
   }
   function pixelesMuertos(s) {
@@ -324,9 +328,9 @@ export function crearPintor(canvas, opciones = {}) {
     }
     // cada tanto, una franja de glitch cruza la ruta
     if ((t % 420) < 4) {
-      const y = Math.floor(hash(t >> 4, 5, 5) * BH);
-      b.fillStyle = 'rgba(40,220,255,.25)'; b.fillRect(0, y, BW, 1);
-      b.fillStyle = 'rgba(255,40,90,.25)'; b.fillRect(0, y + 2, BW, 1);
+      const y = Math.round(cam.y) + Math.floor(hash(t >> 4, 5, 5) * BH);
+      b.fillStyle = 'rgba(40,220,255,.25)'; b.fillRect(cam.x, y, BW, 1);
+      b.fillStyle = 'rgba(255,40,90,.25)'; b.fillRect(cam.x, y + 2, BW, 1);
     }
   }
 
@@ -355,17 +359,83 @@ export function crearPintor(canvas, opciones = {}) {
     }
   }
 
+  // El camión de la Ruta 404, visto de arriba: cabina adelante, acoplado largo y oxidado.
+  function camion(s) {
+    const k = s.camion;
+    if (!k || k.estado !== 'pasa') return;
+    const x = Math.round(bx(k.x)), y = Math.round(by(k.y)), d = k.dir;
+    const L2 = 38, A2 = 14;                                 // medio largo y medio ancho, en píxeles del buffer
+    b.fillStyle = 'rgba(0,0,0,.45)'; b.fillRect(x - A2 + 3, y - L2 + 4, A2 * 2, L2 * 2);
+    b.fillStyle = '#0c0a12'; b.fillRect(x - A2 - 1, y - L2 - 1, A2 * 2 + 2, L2 * 2 + 2);
+    // acoplado
+    const ay = d > 0 ? y - L2 : y - L2 + 22;
+    b.fillStyle = '#6a6460'; b.fillRect(x - A2, ay, A2 * 2, L2 * 2 - 22);
+    b.fillStyle = '#8a827a'; for (let k2 = 0; k2 < L2 * 2 - 22; k2 += 6) b.fillRect(x - A2, ay + k2, A2 * 2, 1);
+    b.fillStyle = '#7a4a2a'; b.fillRect(x - A2 + 3, ay + 8, 5, 3); b.fillRect(x + 4, ay + 30, 6, 4);   // óxido
+    // cabina
+    const cy = d > 0 ? y + L2 - 20 : y - L2;
+    b.fillStyle = '#c8a040'; b.fillRect(x - A2 + 1, cy, A2 * 2 - 2, 20);
+    b.fillStyle = '#9a7a2c'; b.fillRect(x - A2 + 1, cy + (d > 0 ? 0 : 17), A2 * 2 - 2, 3);
+    b.fillStyle = '#3a4a5a'; b.fillRect(x - A2 + 4, cy + (d > 0 ? 12 : 3), A2 * 2 - 8, 5);              // parabrisas
+    // faros
+    b.fillStyle = '#fff8c8'; const fy = d > 0 ? y + L2 - 1 : y - L2;
+    b.fillRect(x - A2 + 2, fy, 4, 2); b.fillRect(x + A2 - 6, fy, 4, 2);
+  }
+
+  // Aviso del camión: titila un ícono en el borde de la pantalla del lado de donde viene.
+  function avisoCamion(s) {
+    const k = s.camion;
+    if (!k || k.estado !== 'aviso' || (s.cuadro >> 3) % 2) return;
+    const x = Math.max(16, Math.min(BW - 48, bx(k.x) - cam.x)), y = k.dir > 0 ? 24 : BH - 34;
+    b.fillStyle = '#e43a3a'; b.fillRect(Math.round(x) - 14, y - 2, 28, 14);
+    b.fillStyle = '#fff8c8'; b.fillRect(Math.round(x) - 10, y + 2, 4, 6); b.fillRect(Math.round(x) + 6, y + 2, 4, 6);
+    b.fillStyle = '#140f22'; b.fillRect(Math.round(x) - 3, y + 1, 6, 8);
+    // flecha hacia adentro
+    b.fillStyle = '#e43a3a';
+    const fy = k.dir > 0 ? y + 14 : y - 6;
+    for (let r = 0; r < 4; r++) b.fillRect(Math.round(x) - 3 + r, fy + (k.dir > 0 ? r : -r), 7 - r * 2, 1);
+  }
+
+  // Radar: la cancha entera en chiquito, arriba a la derecha.
+  function radar(s, seguir) {
+    const rw = 34, rh = 50, x0 = BW - rw - 4, y0 = 20;
+    b.fillStyle = 'rgba(20,15,34,.75)'; b.fillRect(x0 - 1, y0 - 1, rw + 2, rh + 2);
+    b.fillStyle = 'rgba(255,255,255,.15)'; b.fillRect(x0, y0 + rh / 2, rw, 1);
+    const px = (x) => x0 + x / W * rw, py = (y) => y0 + y / H * rh;
+    b.fillStyle = COLOR_AUTO[0].cuerpo; b.fillRect(Math.round(px(W / 2)) - 4, y0, 8, 1);
+    b.fillStyle = COLOR_AUTO[1].cuerpo; b.fillRect(Math.round(px(W / 2)) - 4, y0 + rh - 1, 8, 1);
+    const k = s.camion;
+    if (k && (k.estado === 'pasa' || (k.estado === 'aviso' && (s.cuadro >> 3) % 2))) {
+      b.fillStyle = '#c8a040'; b.fillRect(Math.round(px(k.x)) - 1, k.estado === 'pasa' ? Math.round(py(k.y)) - 3 : (k.dir > 0 ? y0 : y0 + rh - 6), 3, 6);
+    }
+    s.autos.forEach((c, i) => { if (c.aplastado) return; b.fillStyle = i === seguir ? '#ffffff' : COLOR_AUTO[i].techo; b.fillRect(Math.round(px(c.x)) - 1, Math.round(py(c.y)) - 1, 2, 2); });
+    b.fillStyle = '#b4ffd0'; b.fillRect(Math.round(px(s.pelota.x)), Math.round(py(s.pelota.y)), 1, 1);
+  }
+
   // Noche: todo oscuro salvo la Luz Mala, los faros y un poco alrededor de cada auto.
   function noche(s) {
+    octx.setTransform(1, 0, 0, 1, 0, 0);
     octx.globalCompositeOperation = 'source-over';
     octx.clearRect(0, 0, BW, BH);
     octx.fillStyle = 'rgba(6,8,22,.6)'; octx.fillRect(0, 0, BW, BH);
+    octx.setTransform(1, 0, 0, 1, -cam.x, -cam.y);
     octx.globalCompositeOperation = 'destination-out';
     const aro = (x, y, r, a) => { octx.fillStyle = `rgba(0,0,0,${a})`; octx.beginPath(); octx.arc(Math.round(x), Math.round(y), r, 0, Math.PI * 2); octx.fill(); };
     // Luz Mala: tres aros escalonados, que titilan
     const pb = s.pelota, ex = bx(pb.x), ey = by(pb.y), tit = 1 + 0.08 * Math.sin(s.cuadro / 3) + (hash(s.cuadro, 1) < 0.05 ? -0.2 : 0);
     aro(ex, ey, 44 * tit, 0.3); aro(ex, ey, 30 * tit, 0.4); aro(ex, ey, 17 * tit, 0.6);
+    // el camión trae dos faros enormes
+    const k = s.camion;
+    if (k && k.estado === 'pasa') {
+      const x = bx(k.x), y = by(k.y), d = k.dir;
+      aro(x, y, 30, 0.3);
+      for (const [largo, ancho, a] of [[120, 50, 0.35], [80, 30, 0.45]]) {
+        octx.fillStyle = `rgba(0,0,0,${a})`;
+        octx.beginPath(); octx.moveTo(x - 12, y + d * 36); octx.lineTo(x - ancho, y + d * (36 + largo)); octx.lineTo(x + ancho, y + d * (36 + largo)); octx.lineTo(x + 12, y + d * 36); octx.closePath(); octx.fill();
+      }
+    }
     for (const c of s.autos) {
+      if (c.aplastado) continue;
       const x = bx(c.x), y = by(c.y), co = Math.cos(c.rot * Math.PI / 180), si = Math.sin(c.rot * Math.PI / 180);
       aro(x, y, 14, 0.35);
       // faros: un cono hacia adelante en dos escalones
@@ -381,7 +451,7 @@ export function crearPintor(canvas, opciones = {}) {
       if (c.nitroActivo) aro(x - co * 14, y - si * 14, 10, 0.5);
     }
     for (const p of s.pastillas) if (p.activa && p.poder > 50) aro(bx(p.x), by(p.y), 8, 0.25);
-    b.drawImage(oscuro, 0, 0);
+    b.drawImage(oscuro, cam.x, cam.y);
     // brillo verde de la Luz Mala sobre lo que ilumina
     b.globalCompositeOperation = 'lighter';
     b.fillStyle = 'rgba(40,110,70,.25)'; b.beginPath(); b.arc(Math.round(ex), Math.round(ey), Math.round(18 * tit), 0, Math.PI * 2); b.fill();
@@ -391,6 +461,15 @@ export function crearPintor(canvas, opciones = {}) {
 
   function auto(c, i) {
     const x = bx(c.x), y = by(c.y);
+    if (c.aplastado) {
+      // chatarra aplastada que titila hasta que vuelve a aparecer en su arco
+      if (c.aplastado < 40 && (c.aplastado >> 2) % 2) return;
+      b.fillStyle = '#0c0a12'; b.fillRect(Math.round(x) - 12, Math.round(y) - 5, 25, 11);
+      b.fillStyle = COLOR_AUTO[i].lado; b.fillRect(Math.round(x) - 11, Math.round(y) - 4, 23, 9);
+      b.fillStyle = COLOR_AUTO[i].oscuro; b.fillRect(Math.round(x) - 6, Math.round(y) - 2, 12, 5);
+      b.fillStyle = '#4a4a56'; b.fillRect(Math.round(x) - 9, Math.round(y) + 3, 5, 1); b.fillRect(Math.round(x) + 3, Math.round(y) - 3, 6, 1);
+      return;
+    }
     const alto = c.salto > 0 ? Math.sin(Math.PI * (1 - c.salto / 22)) * 7 : 0;
     // sombra
     b.fillStyle = 'rgba(0,0,0,.38)';
@@ -648,18 +727,38 @@ export function crearPintor(canvas, opciones = {}) {
     b.fillStyle = COLOR_AUTO[lado].techo; b.fillRect(x - 3, y, 7, 1); b.fillRect(x - 2, y + 1, 5, 1); b.fillRect(x - 1, y + 2, 3, 1);
   }
 
-  function limpiarMarcas() { mctx.clearRect(0, 0, BW, BH); }
+  function limpiarMarcas() { mctx.clearRect(0, 0, WW, WH); }
+
+  // Cámara: sigue a tu auto (o a la pelota en el menú), mirando un poco hacia adonde va.
+  const cam = { x: (WW - BW) / 2, y: (WH - BH) / 2 };
+  function moverCamara(s, extra) {
+    let tx, ty, suave = 0.12;
+    const c = extra.seguir >= 0 ? s.autos[extra.seguir] : null;
+    if (extra.pantalla === 'menu' || !c) { tx = bx(s.pelota.x); ty = by(s.pelota.y); suave = 0.04; }
+    else { tx = bx(c.x) + c.vx * 9 * K; ty = by(c.y) + c.vy * 9 * K; if (c.aplastado) suave = 0.03; }
+    if (s.fase === 'cuenta' && s.reloj > 150) suave = 0.35;     // al reubicar, la cámara salta rápido
+    const ox = Math.max(0, Math.min(WW - BW, tx - BW / 2)), oy = Math.max(0, Math.min(WH - BH, ty - BH / 2));
+    cam.x += (ox - cam.x) * suave; cam.y += (oy - cam.y) * suave;
+  }
 
   function dibujar(s, extra = {}) {
     zonas.length = 0;
     if (festejo > 0) festejo--;
+    moverCamara(s, extra);
+    const camX = Math.round(cam.x), camY = Math.round(cam.y);
+    cam.x = camX + (cam.x - camX); // (se usa redondeado al dibujar)
+    b.save();
+    b.translate(-camX, -camY);
+    const camR = { x: camX, y: camY };
+    const camOriginal = { x: cam.x, y: cam.y }; cam.x = camX; cam.y = camY;
     b.drawImage(fondo, 0, 0);
     publico(s);
     b.drawImage(marcas, 0, 0);
     pastillas(s);
     if (hombres.length) hombresTanque(s, false);
     // ordenar por y para que lo de adelante tape a lo de atrás (tres cuartos)
-    const cosas = [...s.autos.map((c, i) => ({ y: c.y, f: () => auto(c, i) })), { y: s.pelota.y, f: () => pelota(s.pelota) }];
+    const cosas = [...s.autos.map((c, i) => ({ y: c.y, f: () => auto(c, i) })), { y: s.pelota.y, f: () => pelota(s.pelota) },
+      ...(s.camion && s.camion.estado === 'pasa' ? [{ y: s.camion.y, f: () => camion(s) }] : [])];
     cosas.sort((a, z) => a.y - z.y).forEach((o) => o.f());
     if (cancha.noche) {
       noche(s);
@@ -668,13 +767,16 @@ export function crearPintor(canvas, opciones = {}) {
       if (hombres.length) hombresTanque(s, true);         // los ojos brillan en lo oscuro
     }
     efectos(s);
-    hud(s);
     const r = extra.red;
+    if (r && r.lado >= 0 && extra.pantalla !== 'menu') marcarPropio(s, r.lado);
+    b.restore();
+    cam.x = camOriginal.x; cam.y = camOriginal.y;
+    hud(s);
+    if (extra.pantalla !== 'menu') { radar(s, extra.seguir); avisoCamion(s); }
     if (extra.pantalla === 'menu') portada(s, extra);
     else if (r && r.caido) caido();
     else if (r && (!r.listo || r.jugadores < 2) && r.lado >= 0) esperaSala(r, extra);
     else {
-      if (r && r.lado >= 0) marcarPropio(s, r.lado);
       if (extra.pausa) cartelPausa(extra);
       else if (s.fase === 'cuenta') {
         const n = Math.ceil(s.reloj / FPS);

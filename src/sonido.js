@@ -47,6 +47,10 @@ export function crearSonido() {
       else if (e.t === 'derrape') ruido(0.25, 2500, 0.08);
       else if (e.t === 'salto') { tono(220, 0.18, 0.1, 'sine', 440); ruido(0.15, 3000, 0.1); }
       else if (e.t === 'aterriza') ruido(0.08, 400, 0.2);
+      else if (e.t === 'bocina') { tono(155, 0.7, 0.16, 'sawtooth', 150); tono(196, 0.7, 0.12, 'sawtooth', 190); }
+      else if (e.t === 'camion') { ruido(2.4, 220, 0.5); tono(70, 2.4, 0.18, 'sawtooth', 40); }
+      else if (e.t === 'aplastado') { ruido(0.6, 900, 0.7); ruido(0.35, 3000, 0.3); tono(90, 0.5, 0.2, 'square', 30); }
+      else if (e.t === 'revive') tono(440, 0.25, 0.1, 'triangle', 880);
       else if (e.t === 'tic') tono(440, 0.12, 0.12, 'square');
       else if (e.t === 'arranque') tono(880, 0.3, 0.14, 'square');
       else if (e.t === 'gol') { [523, 659, 784, 1047].forEach((f, k) => setTimeout(() => tono(f, 0.35, 0.12, 'square'), k * 90)); ruido(1.2, 1800, 0.25); }

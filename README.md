@@ -17,6 +17,12 @@ El salto es el *dodge* de Rocket League: solo va para adelante, con doblar va al
 
 Esc pausa, R reinicia desde la pausa y M apaga el sonido. Gana el primero en hacer 3 goles.
 
+## Cancha grande, cámara y camión
+
+- **Un jugador por compu:** se juega contra la máquina u online. Se maneja con W A S D o con las flechas, y en el celu con la palanca y los botones.
+- **Cancha y cámara:** la cancha es el doble de grande (960×1440) y la cámara sigue a tu auto, mirando un poco hacia adonde va. Arriba a la derecha hay un radar con toda la cancha.
+- **El camión de la Ruta 404:** pasa a lo sumo una vez por partido, en el 60 % de los partidos, entre los 20 y los 70 segundos de juego. Avisa con bocina y un cartel titilando del lado de donde viene. Cruza la cancha de punta a punta: si te agarra te aplasta y volvés a aparecer en tu arco a los 2,5 segundos, y a la Luz Mala la saca volando.
+
 ## Canchas
 
 Cada cancha está en `src/canchas.js`: elige el color de cada parte del fondo y qué decorado lleva.

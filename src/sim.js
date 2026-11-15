@@ -6,16 +6,17 @@
 // los choques se resuelven con impulsos. La pelota sale según dónde y qué tan fuerte la
 // pegás, no copiando la dirección del auto como en el original.
 
-export const W = 480, H = 720, FPS = 60;
-export const CAMPO = { L: 20, R: 460, T: 50, B: 670, ochava: 40, arcoAncho: 150, arcoFondo: 34 };
+// Cancha grande (desde 2026-11-15): la cámara sigue a tu auto, así que no entra entera en pantalla.
+export const W = 960, H = 1440, FPS = 60;
+export const CAMPO = { L: 40, R: 920, T: 90, B: 1350, ochava: 80, arcoAncho: 260, arcoFondo: 60 };
 export const GOLES_PARA_GANAR = 3;
 
 // Se mantiene la diferencia del original: el azul dobla mejor y el rojo corre más.
 export const AUTOS = [
   { nombre: 'Azul', color: '#2f7cf6', acel: 0.24, frenada: 0.4, roce: 0.05, velMax: 5.4, velNitro: 9, giro: 4.3, potenciaFreno: 1.5,
-    spawn: { x: 240, y: 200, rot: 90 } },
+    spawn: { x: 480, y: 470, rot: 90 } },
   { nombre: 'Rojo', color: '#e5383b', acel: 0.26, frenada: 0.4, roce: 0.05, velMax: 5.9, velNitro: 9.8, giro: 3.9, potenciaFreno: 1.5,
-    spawn: { x: 240, y: 520, rot: 270 } },
+    spawn: { x: 480, y: 970, rot: 270 } },
 ];
 
 const LARGO = 44, ANCHO = 22;          // tamaño del auto
@@ -37,6 +38,10 @@ const SALTO_DURA = 22, SALTO_RECARGA = 70, SALTO_ENVION = 4.6, SALTO_GOLPE = 2.6
 const CUENTA = 3 * FPS;                // timeRespawn de Main.as
 const FESTEJO = 1.2 * FPS;
 const NITRO_RESPAWN = 5 * FPS;         // timeRespawn de Nitro.as
+// El camión de la Ruta 404: pasa a lo sumo una vez por partido, avisa con luces y bocina,
+// cruza la cancha de punta a punta y aplasta lo que encuentra.
+const CAMION = { prob: 0.6, desde: 20 * FPS, hasta: 70 * FPS, aviso: 2.2 * FPS, vel: 10, largo: 150, ancho: 56 };
+const APLASTADO = 2.5 * FPS;
 
 export function paredes() {
   const { L, R, T, B, ochava: c, arcoAncho, arcoFondo: D } = CAMPO;
@@ -51,12 +56,12 @@ export function paredes() {
 }
 const PARED = paredes();
 
-// Pastillas de nitro, mismas posiciones que addStageNitro() de Main.as.
+// Pastillas de nitro: el mismo dibujo que addStageNitro() de Main.as, en la cancha grande.
 function pastillas() {
-  const k = 70;
-  const grandes = [[k, k + 20], [k, H - k - 20], [W - k, k + 20], [W - k, H - k - 20]];
-  const chicas = [[W / 2 - k, k * 3], [W / 2 + k, k * 3], [k * 1.5, H / 2], [W - k * 1.5, H / 2],
-    [W / 2 - k, H - k * 3], [W / 2 + k, H - k * 3]];
+  const { L, R, T, B } = CAMPO;
+  const grandes = [[L + 90, T + 110], [L + 90, B - 110], [R - 90, T + 110], [R - 90, B - 110]];
+  const chicas = [[W / 2 - 140, T + 330], [W / 2 + 140, T + 330], [L + 130, H / 2], [R - 130, H / 2],
+    [W / 2 - 140, B - 330], [W / 2 + 140, B - 330]];
   return [
     ...grandes.map(([x, y]) => ({ x, y, r: 14, poder: 100, activa: true, espera: 0 })),
     ...chicas.map(([x, y]) => ({ x, y, r: 7, poder: 12, activa: true, espera: 0 })),
@@ -70,7 +75,11 @@ export function nuevoEstado() {
     })),
     pelota: { x: W / 2, y: H / 2, vx: 0, vy: 0, giro: 0 },
     pastillas: pastillas(),
-    fase: 'cuenta', reloj: CUENTA, ganador: -1, ultimoGol: -1, cuadro: 0,
+    fase: 'cuenta', reloj: CUENTA, ganador: -1, ultimoGol: -1, cuadro: 0, tiempoJuego: 0,
+    camion: Math.random() < CAMION.prob ? {
+      estado: 'espera', cuando: Math.round(CAMION.desde + Math.random() * (CAMION.hasta - CAMION.desde)),
+      x: Math.round(CAMPO.L + 110 + Math.random() * (CAMPO.R - CAMPO.L - 220)), dir: Math.random() < 0.5 ? 1 : -1, y: 0, t: 0,
+    } : null,
     eventos: [],
   };
   reubicar(s);
@@ -81,7 +90,7 @@ function reubicar(s) {
   s.autos.forEach((c, i) => {
     const sp = AUTOS[i].spawn;
     Object.assign(c, { x: sp.x, y: sp.y, rot: sp.rot, vx: 0, vy: 0, vel: 0, lat: 0, frenoActivo: false, nitroActivo: false,
-      salto: 0, recarga: 0, saltoAntes: true });
+      salto: 0, recarga: 0, saltoAntes: true, aplastado: 0 });
   });
   Object.assign(s.pelota, { x: W / 2, y: H / 2, vx: 0, vy: 0 });
 }
@@ -118,17 +127,63 @@ export function paso(s, entradas) {
     return s;
   }
 
-  s.autos.forEach((c, i) => manejar(s, c, AUTOS[i], entradas[i] || NADA));
-  chocarAutos(s);
-  s.autos.forEach((c) => chocarPared(s, c));
-  s.autos.forEach((c) => juntarNitro(s, c));
+  s.tiempoJuego++;
+  const vivos = s.autos.filter((c) => !c.aplastado);
+  s.autos.forEach((c, i) => { if (c.aplastado) revivir(s, c, i); });
+  vivos.forEach((c) => manejar(s, c, AUTOS[c.i], entradas[c.i] || NADA));
+  if (vivos.length === 2) chocarAutos(s);
+  vivos.forEach((c) => chocarPared(s, c));
+  vivos.forEach((c) => juntarNitro(s, c));
   const viejo = s.fisica === '2016';
-  s.autos.forEach((c) => (viejo ? pegarPelota2016 : pegarPelota)(s, c));
+  vivos.forEach((c) => (viejo ? pegarPelota2016 : pegarPelota)(s, c));
   (viejo ? moverPelota2016 : moverPelota)(s);
+  camion(s);
   s.autos.forEach(medir);
   revisarGol(s);
   s.pastillas.forEach((p) => { if (!p.activa && --p.espera <= 0) { p.activa = true; s.eventos.push({ t: 'nitroVuelve' }); } });
   return s;
+}
+
+// ---------- El camión ----------
+function camion(s) {
+  const k = s.camion;
+  if (!k || k.estado === 'paso') return;
+  if (k.estado === 'espera') {
+    if (s.tiempoJuego >= k.cuando) { k.estado = 'aviso'; k.t = CAMION.aviso; s.eventos.push({ t: 'bocina', dir: k.dir }); }
+    return;
+  }
+  if (k.estado === 'aviso') {
+    if (--k.t <= 0) { k.estado = 'pasa'; k.y = k.dir > 0 ? CAMPO.T - 260 : CAMPO.B + 260; s.eventos.push({ t: 'camion', dir: k.dir }); }
+    else if (k.t % 40 === 0) s.eventos.push({ t: 'bocina', dir: k.dir });
+    return;
+  }
+  k.y += k.dir * CAMION.vel;
+  const x0 = k.x - CAMION.ancho / 2, x1 = k.x + CAMION.ancho / 2, y0 = k.y - CAMION.largo / 2, y1 = k.y + CAMION.largo / 2;
+  // autos: si los toca, los aplasta
+  for (const c of s.autos) {
+    if (c.aplastado) continue;
+    // se mira cada círculo del auto (frente y cola), así cuenta el largo aunque esté cruzado
+    if (circulosAuto(c).some((q) => q.x > x0 - R_RUEDA && q.x < x1 + R_RUEDA && q.y > y0 - R_RUEDA && q.y < y1 + R_RUEDA)) {
+      c.aplastado = APLASTADO; c.vx = c.vy = 0; c.nitroActivo = false;
+      s.eventos.push({ t: 'aplastado', quien: c.i });
+    }
+  }
+  // la Luz Mala sale volando para el costado y hacia donde va el camión
+  const b = s.pelota;
+  if (b.x > x0 - R_PELOTA - 3 && b.x < x1 + R_PELOTA + 3 && b.y > y0 - R_PELOTA - 3 && b.y < y1 + R_PELOTA + 3) {
+    const lado = b.x < k.x ? -1 : 1;
+    b.x = lado < 0 ? x0 - R_PELOTA - 4 : x1 + R_PELOTA + 4;
+    b.vx = lado * 9; b.vy = k.dir * CAMION.vel * 1.2;
+    s.eventos.push({ t: 'toque', quien: -1, fuerza: 15, fuerte: true });
+  }
+  if ((k.dir > 0 && y0 > CAMPO.B + 120) || (k.dir < 0 && y1 < CAMPO.T - 120)) k.estado = 'paso';
+}
+
+function revivir(s, c, i) {
+  if (--c.aplastado > 0) return;
+  const sp = AUTOS[i].spawn;
+  Object.assign(c, { x: sp.x, y: sp.y, rot: sp.rot, vx: 0, vy: 0, vel: 0, lat: 0, salto: 0, recarga: 0 });
+  s.eventos.push({ t: 'revive', quien: i });
 }
 
 // vel y lat: velocidad hacia adelante y de costado, para el dibujo, el sonido y los bots.

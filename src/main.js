@@ -121,6 +121,13 @@ function leerPropio(auto) {
   return e;
 }
 
+// La cámara sigue a tu auto: contra la máquina sos el azul; online, el lado que te tocó.
+function aQuienSigo() {
+  if (pantalla === 'bot' || pantalla === 'local') return 0;
+  if (pantalla === 'online' && red && red.lado >= 0) return red.lado;
+  return -1;
+}
+
 function vista() {
   if (pantalla === 'online') return red && red.estado;
   return estado;
@@ -130,6 +137,7 @@ function vista() {
 const DT = 1000 / FPS;
 let acumulado = 0, antes = performance.now();
 function cuadro(ahora) {
+  if (window.potrero && window.potrero.congelado) { antes = ahora; requestAnimationFrame(cuadro); return; }   // para pruebas
   acumulado += Math.min(250, ahora - antes); antes = ahora;
   while (acumulado >= DT) {
     if (pantalla === 'local' && !pausa) {
@@ -149,7 +157,7 @@ function cuadro(ahora) {
   if (tactil) tactil.mostrar(pantalla !== 'menu' && !pausa);
   sonido.motores(pantalla === 'menu' || pausa || !s ? null : s);
   pintor.dibujar(s || estado, {
-    pantalla, pausa, tactil: !!tactil,
+    pantalla, pausa, tactil: !!tactil, seguir: aQuienSigo(),
     red: red && { lado: red.lado, jugadores: red.jugadores, codigo: red.codigo, caido: red.caido, conectado: red.conectado, ping: red.ping, listo: !!red.estado },
   });
   requestAnimationFrame(cuadro);
@@ -163,5 +171,5 @@ if (params.get('sala')) empezar('online');
 window.potrero = {
   get estado() { return vista() || estado; }, get red() { return red; },
   paso: (e) => paso(estado, e), empezar: (m = 'local') => empezar(m), menu: volverAlMenu,
-  dibujar: () => pintor.dibujar(vista() || estado, { pantalla, pausa, tactil: !!tactil, red: red && { lado: red.lado, jugadores: red.jugadores, codigo: red.codigo, caido: red.caido, conectado: red.conectado, ping: red.ping, listo: !!red.estado } }),
+  dibujar: () => pintor.dibujar(vista() || estado, { pantalla, pausa, tactil: !!tactil, seguir: aQuienSigo(), red: red && { lado: red.lado, jugadores: red.jugadores, codigo: red.codigo, caido: red.caido, conectado: red.conectado, ping: red.ping, listo: !!red.estado } }),
 };
