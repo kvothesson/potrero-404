@@ -1,0 +1,12 @@
+{
+  "name": "autobol",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node server/local.mjs",
+    "lag": "node -e \"process.env.LAG='120';import('./server/local.mjs')\""
+  },
+  "devDependencies": {
+    "ws": "^8.18.0"
+  }
+}

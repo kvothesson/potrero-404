@@ -75,6 +75,14 @@ const ICONOS = {
   otra: ['..wwww...', '.w....w.w', 'w......ww', 'w.....www', 'w........', 'w.......w', '.w.....w.', '..wwwww..', '.........'],
   sigue: ['.w.......', '.ww......', '.www.....', '.wwww....', '.wwwww...', '.wwww....', '.www.....', '.ww......', '.w.......'],
   flecha: ['.........', '....w....', '.....w...', 'wwwwwww..', '.....w...', '....w....', '.........', '.........', '.........'],
+  robot: ['....r....', '....g....', '.ggggggg.', '.gwgggwg.', '.ggggggg.', '.g.www.g.', '.ggggggg.', '..g...g..', '.gg...gg.'],
+  globo: ['..wwwww..', '.w..w..w.', 'w..w.w..w', 'wwwwwwwww', 'w..w.w..w', 'wwwwwwwww', 'w..w.w..w', '.w..w..w.', '..wwwww..'],
+  copiar: ['wwwww....', 'w...w....', 'w..wwwww.', 'w..w...w.', 'wwww...w.', '...w...w.', '...w...w.', '...wwwww.', '.........'],
+  casa: ['....w....', '...www...', '..wwwww..', '.wwwwwww.', 'wwwwwwwww', '.ww...ww.', '.ww.y.ww.', '.ww.y.ww.', '.wwwwwww.'],
+  cruz: ['r.......r', '.r.....r.', '..r...r..', '...r.r...', '....r....', '...r.r...', '..r...r..', '.r.....r.', 'r.......r'],
+  palanca: ['...www...', '..wwwww..', '..wwwww..', '...www...', '....g....', '....g....', '.ggggggg.', 'ggggggggg', '.ggggggg.'],
+  teclado: ['.........', 'wwwwwwwww', 'w.w.w.w.w', 'wwwwwwwww', 'w.w.w.w.w', 'wwwwwwwww', 'w.wwwww.w', 'wwwwwwwww', '.........'],
+  tilde: ['.........', '........w', '.......ww', '......ww.', 'w....ww..', 'ww..ww...', '.wwww....', '..ww.....', '.........'],
 };
 
 export function icono(ctx, nombre, x, y, esc = 1) {

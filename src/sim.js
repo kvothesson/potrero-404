@@ -93,6 +93,10 @@ export function revancha(s) {
 
 const rad = (g) => g * Math.PI / 180;
 const NADA = { up: false, down: false, left: false, right: false, freno: false, nitro: false, salto: false };
+// Las teclas de un jugador en un número (un bit por tecla), para mandarlas por la red.
+const CLAVES = Object.keys(NADA);
+export const aBits = (e) => CLAVES.reduce((n, k, i) => n | (e && e[k] ? 1 << i : 0), 0);
+export const deBits = (n) => Object.fromEntries(CLAVES.map((k, i) => [k, !!(n & (1 << i))]));
 
 // Avanza un cuadro. entradas: [jugador0, jugador1] con {up, down, left, right, freno, nitro}.
 export function paso(s, entradas) {

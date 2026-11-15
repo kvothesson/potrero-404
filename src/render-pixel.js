@@ -358,55 +358,145 @@ export function crearPintor(canvas) {
     marcador(s, BW / 2 + 30, y0 + 21, 2, i);
   }
 
-  function cartelFinal(s) {
-    const i = s.ganador, y0 = franja(110, COLOR_AUTO[i].techo);
+  // ---------- botones tocables dibujados en el buffer ----------
+  const zonas = [];
+  function boton(id, x, y, w, h, col, dibujo) {
+    x = Math.round(x); y = Math.round(y);
+    zonas.push({ id, x, y, w, h });
+    b.fillStyle = P.contorno; b.fillRect(x - 1, y - 1, w + 2, h + 3);
+    b.fillStyle = col.lado || '#3a3456'; b.fillRect(x, y + 2, w, h);
+    b.fillStyle = col.cuerpo || '#5a5480'; b.fillRect(x, y, w, h);
+    b.fillStyle = 'rgba(255,255,255,.25)'; b.fillRect(x + 1, y, w - 2, 1);
+    dibujo(x, y);
+  }
+  const GRIS = { cuerpo: '#4a4470', lado: '#2a2448' };
+  function botonEn(cx, cy) {
+    const r = canvas.getBoundingClientRect();
+    const x = (cx - r.left) / r.width * BW, y = (cy - r.top) / r.height * BH;
+    for (let i = zonas.length - 1; i >= 0; i--) { const z = zonas[i]; if (x >= z.x - 3 && x <= z.x + z.w + 3 && y >= z.y - 3 && y <= z.y + z.h + 5) return z.id; }
+    return null;
+  }
+
+  function cartelFinal(s, extra) {
+    const i = s.ganador, y0 = franja(118, COLOR_AUTO[i].techo);
     icono(b, 'trofeo', BW / 2 - 18, y0 + 8, 4);
     autoChico(i, BW / 2 - 52, y0 + 30, 0); autoChico(i, BW / 2 + 52, y0 + 30, ANGULOS / 2);
     marcador(s, BW / 2, y0 + 50, 2, i);
-    if ((Date.now() / 450 | 0) % 2) { tecla(b, '⏎', BW / 2 - 16, y0 + 86); icono(b, 'otra', BW / 2 + 4, y0 + 88); }
+    boton('otra', BW / 2 - 30, y0 + 86, 60, 22, COLOR_AUTO[i], (x, y) => {
+      if (!extra.tactil) tecla(b, '⏎', x + 8, y + 4, 21);
+      icono(b, 'otra', extra.tactil ? x + 21 : x + 36, y + 6, extra.tactil ? 2 : 1);
+    });
   }
 
-  function cartelPausa() {
-    const y0 = franja(64, '#9890b8');
+  function cartelPausa(extra) {
+    const y0 = franja(78, '#9890b8');
     icono(b, 'pausa', BW / 2 - 9, y0 + 6, 2);
-    tecla(b, 'ESC', BW / 2 - 60, y0 + 38, 21); icono(b, 'sigue', BW / 2 - 35, y0 + 40);
-    tecla(b, 'R', BW / 2 + 20, y0 + 38); icono(b, 'otra', BW / 2 + 37, y0 + 40);
+    const fila = [['pausa', 'sigue', 'ESC', 21], ['otra', 'otra', 'R', 13], ['menu', 'casa', 'Q', 13]];
+    fila.forEach(([id, ic, etq, ancho], k) => {
+      boton(id, BW / 2 - 102 + k * 70, y0 + 34, 64, 30, GRIS, (x, y) => {
+        if (!extra.tactil) { tecla(b, etq, x + 6, y + 8, ancho); icono(b, ic, x + 12 + ancho, y + 10); }
+        else icono(b, ic, x + 23, y + 6, 2);
+      });
+    });
   }
 
-  function portada(s) {
+  function portada(s, extra) {
     b.fillStyle = 'rgba(20,15,34,.84)'; b.fillRect(0, 0, BW, BH);
-    texto(b, 'AUTOBOL', BW / 2 + 2, 44, { esc: 6, alinear: 'centro', color: '#ffb030', sombra: '#7a2a10' });
-    texto(b, 'AUTOBOL', BW / 2, 42, { esc: 6, alinear: 'centro', color: '#fff4b0', sombra: null });
-    texto(b, '2016 → 2026', BW / 2, 94, { alinear: 'centro', color: '#9890c0' });
+    texto(b, 'AUTOBOL', BW / 2 + 2, 26, { esc: 6, alinear: 'centro', color: '#ffb030', sombra: '#7a2a10' });
+    texto(b, 'AUTOBOL', BW / 2, 24, { esc: 6, alinear: 'centro', color: '#fff4b0', sombra: null });
+    texto(b, '2016 → 2026', BW / 2, 74, { alinear: 'centro', color: '#9890c0' });
 
-    // una columna por jugador: auto, teclas de manejo y una fila por acción (ícono → tecla)
-    const columna = (i, cx, manejo, freno, nitro, salto) => {
-      b.fillStyle = COLOR_AUTO[i].lado; b.fillRect(cx - 62, 112, 124, 190);
-      b.fillStyle = COLOR_AUTO[i].cuerpo; b.fillRect(cx - 61, 113, 122, 188);
-      b.fillStyle = 'rgba(20,15,34,.55)'; b.fillRect(cx - 58, 150, 116, 148);
-      autoChico(i, cx, 132, ANGULOS * 3 / 4);
-      // cruz de manejo
-      tecla(b, manejo[0], cx - 7, 156);
-      tecla(b, manejo[1], cx - 23, 172); tecla(b, manejo[2], cx - 7, 172); tecla(b, manejo[3], cx + 9, 172);
-      const fila = (y, nombre, etq, ancho) => { icono(b, nombre, cx - 44, y + 2); icono(b, 'flecha', cx - 28, y + 2); tecla(b, etq, cx - 14, y, ancho); };
-      fila(200, 'derrape', freno[0], freno[1]);
-      fila(226, 'nitro', nitro[0], nitro[1]);
-      fila(252, 'salto', salto[0], salto[1]);
-    };
-    columna(0, BW / 2 - 66, ['W', 'A', 'S', 'D'], ['⇧', 21], ['', 40], ['E', 13]);
-    columna(1, BW / 2 + 66, ['↑', '←', '↓', '→'], ['⇧', 21], ['CTRL', 29], ['⏎', 21]);
+    if (!extra.tactil) {
+      // una columna por jugador: auto, teclas de manejo y una fila por acción (ícono → tecla)
+      const columna = (i, cx, manejo, freno, nitro, salto) => {
+        b.fillStyle = COLOR_AUTO[i].lado; b.fillRect(cx - 62, 90, 124, 168);
+        b.fillStyle = COLOR_AUTO[i].cuerpo; b.fillRect(cx - 61, 91, 122, 166);
+        b.fillStyle = 'rgba(20,15,34,.55)'; b.fillRect(cx - 58, 124, 116, 130);
+        autoChico(i, cx, 108, ANGULOS * 3 / 4);
+        tecla(b, manejo[0], cx - 7, 130);
+        tecla(b, manejo[1], cx - 23, 146); tecla(b, manejo[2], cx - 7, 146); tecla(b, manejo[3], cx + 9, 146);
+        const fila = (y, nombre, etq, ancho) => { icono(b, nombre, cx - 44, y + 2); icono(b, 'flecha', cx - 28, y + 2); tecla(b, etq, cx - 14, y, ancho); };
+        fila(172, 'derrape', freno[0], freno[1]);
+        fila(198, 'nitro', nitro[0], nitro[1]);
+        fila(224, 'salto', salto[0], salto[1]);
+      };
+      columna(0, BW / 2 - 66, ['W', 'A', 'S', 'D'], ['⇧', 21], ['', 40], ['E', 13]);
+      columna(1, BW / 2 + 66, ['↑', '←', '↓', '→'], ['⇧', 21], ['CTRL', 29], ['⏎', 21]);
+    } else {
+      // en el celu: palanca a la izquierda maneja, botones a la derecha
+      b.fillStyle = '#2a2448'; b.fillRect(14, 90, BW - 28, 168);
+      icono(b, 'palanca', 40, 120, 4);
+      icono(b, 'flecha', 84, 140, 2);
+      autoChico(0, 120, 150, 0);
+      [['derrape', 112], ['salto', 160], ['nitro', 208]].forEach(([ic, y]) => {
+        b.fillStyle = P.contorno; b.beginPath(); b.arc(196, y, 18, 0, Math.PI * 2); b.fill();
+        b.fillStyle = '#4a4470'; b.beginPath(); b.arc(196, y, 17, 0, Math.PI * 2); b.fill();
+        icono(b, ic, 187, y - 9, 2);
+      });
+    }
 
     // se gana con 3 goles: tres pelotas y el trofeo
-    for (let k = 0; k < GOLES_PARA_GANAR; k++) b.drawImage(pelotas[(k * 3 + (s.cuadro >> 3)) & 7], BW / 2 - 46 + k * 16, 318);
-    icono(b, 'flecha', BW / 2 + 2, 320); icono(b, 'trofeo', BW / 2 + 16, 318, 2);
-    if ((Date.now() / 450 | 0) % 2) { tecla(b, '⏎', BW / 2 - 22, 352, 21); icono(b, 'sigue', BW / 2 + 4, 354, 1); icono(b, 'sigue', BW / 2 + 9, 354, 1); }
-    tecla(b, 'ESC', 8, BH - 22, 21); icono(b, 'pausa', 32, BH - 20);
-    tecla(b, 'M', BW - 38, BH - 22); icono(b, 'sonido', BW - 22, BH - 20);
+    for (let k = 0; k < GOLES_PARA_GANAR; k++) b.drawImage(pelotas[(k * 3 + (s.cuadro >> 3)) & 7], BW / 2 - 46 + k * 16, 266);
+    icono(b, 'flecha', BW / 2 + 2, 268); icono(b, 'trofeo', BW / 2 + 16, 266, 2);
+
+    // tres modos: dos en un teclado, contra la máquina, online con un link
+    const modos = extra.tactil ? [['bot', 0], ['online', 1]] : [['local', 0], ['bot', 1], ['online', 2]];
+    const w = 76, sep = 10, total = modos.length * w + (modos.length - 1) * sep;
+    modos.forEach(([id], k) => {
+      boton(id, BW / 2 - total / 2 + k * (w + sep), 292, w, 52, id === 'online' ? { cuerpo: '#2f8f6a', lado: '#1c5a42' } : GRIS, (x, y) => {
+        if (id === 'local') { autoChico(0, x + 22, y + 20, ANGULOS / 2); autoChico(1, x + 54, y + 20, 0); icono(b, 'teclado', x + 30, y + 38); }
+        if (id === 'bot') { autoChico(0, x + 22, y + 22, 0); icono(b, 'robot', x + 42, y + 10, 3); }
+        if (id === 'online') { icono(b, 'globo', x + 11, y + 8, 4); autoChico(1, x + 60, y + 30, ANGULOS * 3 / 4); }
+        if (!extra.tactil) tecla(b, String(k + 1), x + w - 16, y - 7);
+      });
+    });
+    if (!extra.tactil) { tecla(b, 'ESC', 8, BH - 22, 21); icono(b, 'pausa', 32, BH - 20); }
+    boton('sonido', BW - 30, BH - 26, 22, 18, GRIS, (x, y) => { icono(b, 'sonido', x + 7, y + 4); });
+    if (!extra.tactil) tecla(b, 'M', BW - 48, BH - 24);
+  }
+
+  // Sala online: código grande, botón para copiar o compartir el link y quién falta.
+  let copiado = 0;
+  function esperaSala(r, extra) {
+    const y0 = franja(170, '#2f8f6a');
+    icono(b, 'globo', BW / 2 - 18, y0 + 8, 4);
+    texto(b, r.codigo || '', BW / 2, y0 + 50, { esc: 4, alinear: 'centro', color: '#fff4b0', sombra: P.contorno });
+    boton('copiar', BW / 2 - 34, y0 + 86, 68, 26, { cuerpo: '#2f8f6a', lado: '#1c5a42' }, (x, y) => {
+      icono(b, copiado > 0 ? 'tilde' : 'copiar', x + 25, y + 4, 2);
+    });
+    if (copiado > 0) copiado--;
+    // dos lugares: el tuyo y el que falta
+    const t = Date.now() / 300;
+    [0, 1].forEach((i) => {
+      const x = BW / 2 + (i ? 40 : -40), y = y0 + 140, ocupado = r.jugadores > i || r.lado === i;
+      b.fillStyle = P.contorno; b.fillRect(x - 22, y - 16, 44, 32);
+      b.fillStyle = '#2a2448'; b.fillRect(x - 21, y - 15, 42, 30);
+      if (ocupado) autoChico(i, x, y, ANGULOS * 3 / 4);
+      else for (let k = 0; k < 3; k++) { b.fillStyle = (Math.floor(t) % 3) === k ? '#fff' : '#5a5480'; b.fillRect(x - 6 + k * 5, y, 3, 3); }
+      if (r.lado === i) { b.fillStyle = COLOR_AUTO[i].techo; b.fillRect(x - 3, y - 22, 7, 2); b.fillRect(x - 2, y - 20, 5, 1); b.fillRect(x - 1, y - 19, 3, 1); }
+    });
+    boton('menu', 8, BH - 28, 24, 20, GRIS, (x, y) => icono(b, 'casa', x + 7, y + 5));
+  }
+
+  function caido() {
+    const y0 = franja(70, '#e43a3a');
+    icono(b, 'globo', BW / 2 - 18, y0 + 16, 4);
+    icono(b, 'cruz', BW / 2 - 18, y0 + 16, 4);
+    boton('menu', BW / 2 - 16, y0 + 80, 32, 22, GRIS, (x, y) => icono(b, 'casa', x + 11, y + 6));
+  }
+
+  // En online, una flechita arriba de tu auto para saber cuál sos.
+  function marcarPropio(s, lado) {
+    const c = s.autos[lado]; if (!c) return;
+    const x = Math.round(bx(c.x)), y = Math.round(by(c.y)) - 18 - (((s.cuadro >> 4) & 1));
+    b.fillStyle = P.contorno; b.fillRect(x - 4, y - 1, 9, 5);
+    b.fillStyle = COLOR_AUTO[lado].techo; b.fillRect(x - 3, y, 7, 1); b.fillRect(x - 2, y + 1, 5, 1); b.fillRect(x - 1, y + 2, 3, 1);
   }
 
   function limpiarMarcas() { mctx.clearRect(0, 0, BW, BH); }
 
   function dibujar(s, extra = {}) {
+    zonas.length = 0;
     if (festejo > 0) festejo--;
     b.drawImage(fondo, 0, 0);
     publico(s);
@@ -417,13 +507,24 @@ export function crearPintor(canvas) {
     cosas.sort((a, z) => a.y - z.y).forEach((o) => o.f());
     efectos(s);
     hud(s);
-    if (extra.portada) portada(s);
-    else if (extra.pausa) cartelPausa();
-    else if (s.fase === 'cuenta') {
-      const n = Math.ceil(s.reloj / FPS);
-      texto(b, n, BW / 2, BH / 2 - 22, { esc: 6, alinear: 'centro', color: '#fff4b0', sombra: P.contorno });
-    } else if (s.fase === 'gol' && s.ganador < 0) cartelGol(s);
-    else if (s.fase === 'gol' || s.fase === 'fin') cartelFinal(s);
+    const r = extra.red;
+    if (extra.pantalla === 'menu') portada(s, extra);
+    else if (r && r.caido) caido();
+    else if (r && (!r.listo || r.jugadores < 2) && r.lado >= 0) esperaSala(r, extra);
+    else {
+      if (r && r.lado >= 0) marcarPropio(s, r.lado);
+      if (extra.pausa) cartelPausa(extra);
+      else if (s.fase === 'cuenta') {
+        const n = Math.ceil(s.reloj / FPS);
+        texto(b, n, BW / 2, BH / 2 - 22, { esc: 6, alinear: 'centro', color: '#fff4b0', sombra: P.contorno });
+      } else if (s.fase === 'gol' && s.ganador < 0) cartelGol(s);
+      else if (s.fase === 'gol' || s.fase === 'fin') cartelFinal(s, extra);
+      // en el celu, botón para pausar (o salir, si es online) arriba a la izquierda
+      if (extra.tactil && !extra.pausa) {
+        if (r) boton('menu', 4, 2, 22, 16, GRIS, (x, y) => icono(b, 'casa', x + 6, y + 3));
+        else boton('pausa', 4, 2, 22, 16, GRIS, (x, y) => icono(b, 'pausa', x + 6, y + 3));
+      }
+    }
     // a pantalla, escala entera y sin suavizado; temblor de cámara en golpes y goles
     const k = canvas.width / BW;
     const tx = temblor > 0 ? Math.round((Math.random() - 0.5) * temblor * 0.6) : 0, ty = temblor > 0 ? Math.round((Math.random() - 0.5) * temblor * 0.6) : 0;
@@ -433,5 +534,5 @@ export function crearPintor(canvas) {
     ctx.drawImage(buf, tx * k, ty * k, BW * k, BH * k);
   }
 
-  return { dibujar, limpiarMarcas };
+  return { dibujar, limpiarMarcas, botonEn, avisarCopiado: () => { copiado = 90; } };
 }

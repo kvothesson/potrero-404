@@ -236,5 +236,5 @@ export function crearPintor(canvas) {
     ctx.fillText('Esc pausa · M sonido', W / 2, 668);
   }
 
-  return { dibujar, limpiarMarcas };
+  return { dibujar: (s, extra = {}) => dibujar(s, { ...extra, portada: extra.pantalla === 'menu' }), limpiarMarcas, botonEn: () => null, avisarCopiado: () => {} };
 }
