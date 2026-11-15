@@ -55,7 +55,47 @@ const G = {
   '(': ['00010', '00100', '01000', '01000', '01000', '00100', '00010'],
   ')': ['01000', '00100', '00010', '00010', '00010', '00100', '01000'],
   ' ': ['00000', '00000', '00000', '00000', '00000', '00000', '00000'],
+  '↑': ['00100', '01110', '10101', '00100', '00100', '00100', '00100'],
+  '↓': ['00100', '00100', '00100', '00100', '10101', '01110', '00100'],
+  '←': ['00000', '00100', '01000', '11111', '01000', '00100', '00000'],
+  '→': ['00000', '00100', '00010', '11111', '00010', '00100', '00000'],
+  '⏎': ['00001', '00001', '00101', '01001', '11111', '01000', '00100'],
+  '⇧': ['00100', '01010', '10001', '11011', '01010', '01010', '01110'],
 };
+
+// Íconos de 9x9 para decir las cosas sin palabras. Letras = colores de COLORES.
+const COLORES = { k: '#140f22', w: '#ffffff', y: '#ffd040', o: '#e07818', g: '#9890b8', r: '#e43a3a', l: '#fff4b0' };
+const ICONOS = {
+  nitro: ['....o....', '...oyo...', '..oyyo...', '..oyyyo..', '.oyylyo..', '.oyllyyo.', '.oylllyo.', '..oylyo..', '...ooo...'],
+  derrape: ['..wwwww..', '.w.....w.', 'w.......w', 'w.......w', '.......ww', '......www', '..g......', '.g.g.g...', 'g.g.g....'],
+  salto: ['....w....', '...www...', '..wwwww..', '.ww.w.ww.', '....w....', '....w....', '.........', '.wwwwwww.', '.g.....g.'],
+  pausa: ['.........', '.ww...ww.', '.ww...ww.', '.ww...ww.', '.ww...ww.', '.ww...ww.', '.ww...ww.', '.ww...ww.', '.........'],
+  sonido: ['....w....', '...ww..w.', 'wwwww...w', 'wwwww.w.w', 'wwwww.w.w', 'wwwww...w', '...ww..w.', '....w....', '.........'],
+  trofeo: ['yyyyyyyyy', 'y.yyyyy.y', 'y.yylyy.y', '.yyylyyy.', '..yyyyy..', '...yyy...', '....y....', '...yyy...', '..ooooo..'],
+  otra: ['..wwww...', '.w....w.w', 'w......ww', 'w.....www', 'w........', 'w.......w', '.w.....w.', '..wwwww..', '.........'],
+  sigue: ['.w.......', '.ww......', '.www.....', '.wwww....', '.wwwww...', '.wwww....', '.www.....', '.ww......', '.w.......'],
+  flecha: ['.........', '....w....', '.....w...', 'wwwwwww..', '.....w...', '....w....', '.........', '.........', '.........'],
+};
+
+export function icono(ctx, nombre, x, y, esc = 1) {
+  const m = ICONOS[nombre];
+  for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++) {
+    const ch = m[r][c];
+    if (ch === '.') continue;
+    ctx.fillStyle = COLORES[ch];
+    ctx.fillRect(Math.round(x) + c * esc, Math.round(y) + r * esc, esc, esc);
+  }
+}
+
+// Tecla dibujada, con la etiqueta que trae el teclado (W, ↑, ⇧, ESC...). ancho en píxeles.
+export function tecla(ctx, etiqueta, x, y, ancho = 13) {
+  x = Math.round(x); y = Math.round(y);
+  ctx.fillStyle = COLORES.k; ctx.fillRect(x - 1, y - 1, ancho + 2, 15);
+  ctx.fillStyle = '#8a86a8'; ctx.fillRect(x, y, ancho, 13);
+  ctx.fillStyle = '#dcd8ec'; ctx.fillRect(x, y, ancho, 11);
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(x + 1, y, ancho - 2, 1);
+  if (etiqueta) texto(ctx, etiqueta, x + ancho / 2, y + 2, { alinear: 'centro', color: '#2a2448', sombra: null });
+}
 
 // Escribe texto en mayúsculas. esc = tamaño del píxel; sombra = color de la sombra dura de 1 píxel.
 export function texto(ctx, str, x, y, { color = '#fff', esc = 1, alinear = 'izq', sombra = '#000' } = {}) {

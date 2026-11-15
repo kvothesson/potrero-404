@@ -17,6 +17,10 @@ El salto es el *dodge* de Rocket League: solo va para adelante, con doblar va al
 
 Esc pausa, R reinicia desde la pausa y M apaga el sonido. Gana el primero en hacer 3 goles.
 
+## Sin idioma
+
+En pantalla no hay palabras, para que se entienda en cualquier idioma. Los jugadores se distinguen por el color. Los controles se muestran con teclas dibujadas e íconos (derrape, nitro, salto), y para "se gana con 3" hay tres pelotas, una flecha y un trofeo. El gol se muestra con el auto que lo hizo, la pelota y el marcador, y el final con el trofeo y la tecla ⏎ para la revancha. El único texto que queda es el nombre del juego.
+
 ## Qué se respetó del original
 
 Se sacó del fuente de la versión 09 (`Antiguo Ball/09-CarPruebas/src`, mayo de 2016):

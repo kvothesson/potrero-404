@@ -2,7 +2,9 @@
 // (272x400) con paleta limitada, contornos de 1 píxel y vista de tres cuartos, y después
 // se agranda a escala entera sin suavizado. Solo lee el estado; nunca lo cambia.
 import { W, H, CAMPO, AUTOS, GOLES_PARA_GANAR, FPS, paredes } from './sim.js';
-import { texto } from './fuente.js';
+import { texto, icono, tecla } from './fuente.js';
+// Sin palabras en pantalla: todo se dice con colores, números, íconos y teclas dibujadas,
+// para que se entienda en cualquier idioma.
 
 const BW = 272, BH = 400, OX = 16, OY = 20, K = 0.5;     // buffer y paso de sim a buffer
 const bx = (x) => OX + x * K, by = (y) => OY + y * K;
@@ -308,14 +310,7 @@ export function crearPintor(canvas) {
 
   function hud(s) {
     // marcador arriba, sobre las gradas
-    const ancho = 120, x0 = BW / 2 - ancho / 2;
-    b.fillStyle = P.contorno; b.fillRect(x0 - 1, 1, ancho + 2, 16);
-    b.fillStyle = '#2a2448'; b.fillRect(x0, 2, ancho, 14);
-    b.fillStyle = COLOR_AUTO[0].cuerpo; b.fillRect(x0, 2, 40, 14);
-    b.fillStyle = COLOR_AUTO[1].cuerpo; b.fillRect(x0 + ancho - 40, 2, 40, 14);
-    texto(b, 'AZUL', x0 + 20, 6, { alinear: 'centro' });
-    texto(b, 'ROJO', x0 + ancho - 20, 6, { alinear: 'centro' });
-    texto(b, `${s.autos[0].goles}-${s.autos[1].goles}`, BW / 2, 5, { alinear: 'centro', color: '#ffe060', esc: 1 });
+    marcador(s, BW / 2, 2);
     // barras de nitro en las gradas de los costados, en bloques
     s.autos.forEach((c, i) => {
       const x = i === 0 ? 4 : BW - 10, y0 = i === 0 ? 70 : BH - 70 - 101;
@@ -331,28 +326,82 @@ export function crearPintor(canvas) {
     });
   }
 
-  function cartel(t1, t2, col) {
-    b.fillStyle = 'rgba(20,15,34,.75)'; b.fillRect(0, BH / 2 - 30, BW, t2 ? 62 : 46);
-    b.fillStyle = col || '#fff'; b.fillRect(0, BH / 2 - 31, BW, 1); b.fillRect(0, BH / 2 + (t2 ? 31 : 15), BW, 1);
-    texto(b, t1, BW / 2, BH / 2 - 24, { esc: 4, alinear: 'centro', color: col || '#fff', sombra: P.contorno });
-    if (t2) texto(b, t2, BW / 2, BH / 2 + 16, { alinear: 'centro' });
+  // Marcador: un bloque de cada color con su número. esc agranda todo.
+  function marcador(s, cx, y, esc = 1, resaltar = -1) {
+    const w = 26 * esc, h = 14 * esc, sep = 10 * esc;
+    const x0 = Math.round(cx - w - sep / 2);
+    b.fillStyle = P.contorno; b.fillRect(x0 - 1, y - 1, w * 2 + sep + 2, h + 2);
+    b.fillStyle = '#2a2448'; b.fillRect(x0, y, w * 2 + sep, h);
+    [0, 1].forEach((i) => {
+      const x = i === 0 ? x0 : x0 + w + sep;
+      const brilla = resaltar === i && (Date.now() / 160 | 0) % 2;
+      b.fillStyle = brilla ? COLOR_AUTO[i].techo : COLOR_AUTO[i].cuerpo; b.fillRect(x, y, w, h);
+      b.fillStyle = COLOR_AUTO[i].lado; b.fillRect(x, y + h - esc, w, esc);
+      texto(b, s.autos[i].goles, x + w / 2, y + 4 * esc - (esc > 1 ? esc : 0), { alinear: 'centro', esc, sombra: COLOR_AUTO[i].oscuro });
+    });
+    b.fillStyle = '#9890b8'; b.fillRect(Math.round(cx) - 2 * esc, y + h / 2 - esc / 2, 4 * esc, esc);
   }
 
-  function portada() {
-    b.fillStyle = 'rgba(20,15,34,.82)'; b.fillRect(0, 0, BW, BH);
-    texto(b, 'AUTOBOL', BW / 2 + 2, 62, { esc: 6, alinear: 'centro', color: '#ffb030', sombra: '#7a2a10' });
-    texto(b, 'AUTOBOL', BW / 2, 60, { esc: 6, alinear: 'centro', color: '#fff4b0', sombra: null });
-    texto(b, 'PROG II 2016 · REVIVIDO 2026', BW / 2, 112, { alinear: 'centro', color: '#9890c0' });
-    const bloque = (y, i, nom, filas) => {
-      b.fillStyle = COLOR_AUTO[i].cuerpo; b.fillRect(BW / 2 - 110, y - 3, 220, 13);
-      texto(b, nom, BW / 2, y, { alinear: 'centro' });
-      filas.forEach((f, k) => texto(b, f, BW / 2, y + 16 + k * 11, { alinear: 'centro', color: '#e8e4ff' }));
+  function franja(alto, col) {
+    const y0 = Math.round(BH / 2 - alto / 2);
+    b.fillStyle = 'rgba(20,15,34,.78)'; b.fillRect(0, y0, BW, alto);
+    b.fillStyle = col; b.fillRect(0, y0 - 1, BW, 2); b.fillRect(0, y0 + alto - 1, BW, 2);
+    return y0;
+  }
+
+  function autoChico(i, x, y, rotK = 0) { b.drawImage(autos[i][rotK], Math.round(x - TAM / 2), Math.round(y - TAM / 2)); }
+
+  function cartelGol(s) {
+    const i = s.ultimoGol, y0 = franja(70, COLOR_AUTO[i].techo);
+    autoChico(i, 46, y0 + 35, 0);
+    b.drawImage(pelotas[(s.cuadro >> 2) & 7], 70, y0 + 28);
+    marcador(s, BW / 2 + 30, y0 + 21, 2, i);
+  }
+
+  function cartelFinal(s) {
+    const i = s.ganador, y0 = franja(110, COLOR_AUTO[i].techo);
+    icono(b, 'trofeo', BW / 2 - 18, y0 + 8, 4);
+    autoChico(i, BW / 2 - 52, y0 + 30, 0); autoChico(i, BW / 2 + 52, y0 + 30, ANGULOS / 2);
+    marcador(s, BW / 2, y0 + 50, 2, i);
+    if ((Date.now() / 450 | 0) % 2) { tecla(b, '⏎', BW / 2 - 16, y0 + 86); icono(b, 'otra', BW / 2 + 4, y0 + 88); }
+  }
+
+  function cartelPausa() {
+    const y0 = franja(64, '#9890b8');
+    icono(b, 'pausa', BW / 2 - 9, y0 + 6, 2);
+    tecla(b, 'ESC', BW / 2 - 60, y0 + 38, 21); icono(b, 'sigue', BW / 2 - 35, y0 + 40);
+    tecla(b, 'R', BW / 2 + 20, y0 + 38); icono(b, 'otra', BW / 2 + 37, y0 + 40);
+  }
+
+  function portada(s) {
+    b.fillStyle = 'rgba(20,15,34,.84)'; b.fillRect(0, 0, BW, BH);
+    texto(b, 'AUTOBOL', BW / 2 + 2, 44, { esc: 6, alinear: 'centro', color: '#ffb030', sombra: '#7a2a10' });
+    texto(b, 'AUTOBOL', BW / 2, 42, { esc: 6, alinear: 'centro', color: '#fff4b0', sombra: null });
+    texto(b, '2016 → 2026', BW / 2, 94, { alinear: 'centro', color: '#9890c0' });
+
+    // una columna por jugador: auto, teclas de manejo y una fila por acción (ícono → tecla)
+    const columna = (i, cx, manejo, freno, nitro, salto) => {
+      b.fillStyle = COLOR_AUTO[i].lado; b.fillRect(cx - 62, 112, 124, 190);
+      b.fillStyle = COLOR_AUTO[i].cuerpo; b.fillRect(cx - 61, 113, 122, 188);
+      b.fillStyle = 'rgba(20,15,34,.55)'; b.fillRect(cx - 58, 150, 116, 148);
+      autoChico(i, cx, 132, ANGULOS * 3 / 4);
+      // cruz de manejo
+      tecla(b, manejo[0], cx - 7, 156);
+      tecla(b, manejo[1], cx - 23, 172); tecla(b, manejo[2], cx - 7, 172); tecla(b, manejo[3], cx + 9, 172);
+      const fila = (y, nombre, etq, ancho) => { icono(b, nombre, cx - 44, y + 2); icono(b, 'flecha', cx - 28, y + 2); tecla(b, etq, cx - 14, y, ancho); };
+      fila(200, 'derrape', freno[0], freno[1]);
+      fila(226, 'nitro', nitro[0], nitro[1]);
+      fila(252, 'salto', salto[0], salto[1]);
     };
-    bloque(140, 0, 'AZUL · MÁS ÁGIL', ['MANEJA: W A S D', 'FRENO DE MANO: SHIFT IZQ O C', 'NITRO: ESPACIO O V', 'SALTO: E O F']);
-    bloque(214, 1, 'ROJO · MÁS RÁPIDO', ['MANEJA: FLECHAS', 'FRENO DE MANO: SHIFT DER O .', 'NITRO: CTRL DER O /', 'SALTO: ENTER']);
-    texto(b, `GANA EL PRIMERO EN HACER ${GOLES_PARA_GANAR} GOLES`, BW / 2, 300, { alinear: 'centro', color: '#ffb030' });
-    if ((Date.now() / 450 | 0) % 2) texto(b, 'APRETÁ ENTER', BW / 2, 330, { esc: 2, alinear: 'centro' });
-    texto(b, 'ESC PAUSA · M SONIDO', BW / 2, 372, { alinear: 'centro', color: '#8a84b0' });
+    columna(0, BW / 2 - 66, ['W', 'A', 'S', 'D'], ['⇧', 21], ['', 40], ['E', 13]);
+    columna(1, BW / 2 + 66, ['↑', '←', '↓', '→'], ['⇧', 21], ['CTRL', 29], ['⏎', 21]);
+
+    // se gana con 3 goles: tres pelotas y el trofeo
+    for (let k = 0; k < GOLES_PARA_GANAR; k++) b.drawImage(pelotas[(k * 3 + (s.cuadro >> 3)) & 7], BW / 2 - 46 + k * 16, 318);
+    icono(b, 'flecha', BW / 2 + 2, 320); icono(b, 'trofeo', BW / 2 + 16, 318, 2);
+    if ((Date.now() / 450 | 0) % 2) { tecla(b, '⏎', BW / 2 - 22, 352, 21); icono(b, 'sigue', BW / 2 + 4, 354, 1); icono(b, 'sigue', BW / 2 + 9, 354, 1); }
+    tecla(b, 'ESC', 8, BH - 22, 21); icono(b, 'pausa', 32, BH - 20);
+    tecla(b, 'M', BW - 38, BH - 22); icono(b, 'sonido', BW - 22, BH - 20);
   }
 
   function limpiarMarcas() { mctx.clearRect(0, 0, BW, BH); }
@@ -368,16 +417,13 @@ export function crearPintor(canvas) {
     cosas.sort((a, z) => a.y - z.y).forEach((o) => o.f());
     efectos(s);
     hud(s);
-    if (extra.portada) portada();
-    else if (extra.pausa) cartel('PAUSA', 'ESC SIGUE · R REINICIA');
+    if (extra.portada) portada(s);
+    else if (extra.pausa) cartelPausa();
     else if (s.fase === 'cuenta') {
       const n = Math.ceil(s.reloj / FPS);
       texto(b, n, BW / 2, BH / 2 - 22, { esc: 6, alinear: 'centro', color: '#fff4b0', sombra: P.contorno });
-    } else if (s.fase === 'gol' && s.ganador < 0) {
-      cartel('¡GOL!', `DEL ${AUTOS[s.ultimoGol].nombre.toUpperCase()}`, COLOR_AUTO[s.ultimoGol].techo);
-    } else if (s.fase === 'gol' || s.fase === 'fin') {
-      cartel(`GANÓ`, `EL ${AUTOS[s.ganador].nombre.toUpperCase()} · ${s.autos[0].goles} A ${s.autos[1].goles} · ENTER REVANCHA`, COLOR_AUTO[s.ganador].techo);
-    }
+    } else if (s.fase === 'gol' && s.ganador < 0) cartelGol(s);
+    else if (s.fase === 'gol' || s.fase === 'fin') cartelFinal(s);
     // a pantalla, escala entera y sin suavizado; temblor de cámara en golpes y goles
     const k = canvas.width / BW;
     const tx = temblor > 0 ? Math.round((Math.random() - 0.5) * temblor * 0.6) : 0, ty = temblor > 0 ? Math.round((Math.random() - 0.5) * temblor * 0.6) : 0;
