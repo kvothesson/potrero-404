@@ -14,6 +14,9 @@ export function urlServidor() {
   return 'wss://potrero-404.kvothesson.workers.dev';   // nube/ en Cloudflare
 }
 
+// La API del ranking vive en el mismo servidor que las salas, por http(s).
+export const urlApi = () => urlServidor().replace(/^ws/, 'http');
+
 export function codigoNuevo() {
   const letras = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';   // sin O/0 ni I/1 para que no se confundan
   let c = '';
@@ -21,11 +24,16 @@ export function codigoNuevo() {
   return c;
 }
 
-export function conectar({ codigo, fisica }) {
-  const url = `${urlServidor()}/sala?codigo=${encodeURIComponent(codigo)}${fisica ? `&fisica=${fisica}` : ''}`;
+// rank: partida rankeada (cuenta para el Elo). yo: {id, llave} de este navegador.
+export function conectar({ codigo, fisica, rank = false, yo = null }) {
+  const q = new URLSearchParams({ codigo });
+  if (fisica) q.set('fisica', fisica);
+  if (rank) q.set('rank', '1');
+  if (yo) { q.set('id', yo.id); q.set('llave', yo.llave); }
+  const url = `${urlServidor()}/sala?${q}`;
   const ws = new WebSocket(url);
   const r = {
-    lado: null, jugadores: 0, estado: null, conectado: false, caido: false, ping: 0,
+    lado: null, jugadores: 0, estado: null, conectado: false, caido: false, ping: 0, rankeada: rank, nombres: [null, null], elo: null, sinIdentidad: false,
     pendientes: [], seq: 0, teclasOtro: 0, eventosPendientes: [],
     suave: [{ x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }],   // autos y pelota: corrección que se va disimulando
   };
@@ -34,7 +42,9 @@ export function conectar({ codigo, fisica }) {
   ws.onmessage = (ev) => {
     const m = JSON.parse(ev.data);
     if (m.t === 'hola') r.lado = m.lado;
-    else if (m.t === 'sala') r.jugadores = m.jugadores;
+    else if (m.t === 'sala') { r.jugadores = m.jugadores; r.nombres = m.nombres || [null, null]; }
+    else if (m.t === 'elo') r.elo = m;                          // {cambio: [azul, rojo], elo: [azul, rojo], abandono}
+    else if (m.t === 'sinIdentidad') r.sinIdentidad = true;
     else if (m.t === 'estado') recibir(m);
   };
 
