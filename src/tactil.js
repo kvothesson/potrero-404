@@ -48,11 +48,12 @@ export function crearTactil() {
   zona.addEventListener('pointerup', fin); zona.addEventListener('pointercancel', fin);
 
   // Traduce el joystick a las teclas de siempre, según para dónde mira el auto.
-  function leer(auto) {
+  // anguloCamara: cuánto está girada la pantalla (grados); la palanca se lee en la pantalla.
+  function leer(auto, anguloCamara = 0) {
     const e = { up: false, down: false, left: false, right: false, freno: apretado.freno, nitro: apretado.nitro, salto: apretado.salto };
     const fuerza = Math.hypot(vx, vy);
     if (!auto || fuerza < 0.25) return e;
-    const quiere = Math.atan2(vy, vx) * 180 / Math.PI;
+    const quiere = Math.atan2(vy, vx) * 180 / Math.PI - anguloCamara;
     const dif = ((quiere - auto.rot + 540) % 360) - 180;
     if (Math.abs(dif) > 150 && Math.abs(auto.vel) < 1.5) { e.down = true; return e; }   // tirar para atrás: marcha atrás
     e.up = true;

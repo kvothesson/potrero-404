@@ -10,6 +10,9 @@ import { CANCHAS, hash } from './canchas.js';
 // BW×BH es lo que se ve en pantalla. El mundo (WW×WH) es más grande: la cancha más el
 // escenario de los costados, y la cámara sigue a tu auto.
 const BW = 272, BH = 400, K = 0.5;
+// La cámara gira (como el Mode 7 de la Super Nintendo): el mundo se dibuja en un cuadrado VW×VW
+// centrado en tu auto y después se pega girado en la pantalla, con tu auto siempre mirando arriba.
+const VW = 580, ANCLA_Y = Math.round(BH * 0.64);
 const OX = 70, OY = 60;                                     // margen de escenario alrededor de la cancha
 const WW = Math.round(W * K) + OX * 2, WH = Math.round(H * K) + OY * 2;
 const bx = (x) => OX + x * K, by = (y) => OY + y * K;
@@ -230,14 +233,17 @@ function armarPublico(M) {
 export function crearPintor(canvas, opciones = {}) {
   const ctx = canvas.getContext('2d');
   const buf = document.createElement('canvas'); buf.width = BW; buf.height = BH;
-  const b = buf.getContext('2d');
+  const vista = buf.getContext('2d');
+  let b = vista;                                           // se apunta al mundo mientras se dibuja el mundo
+  const gran = document.createElement('canvas'); gran.width = VW; gran.height = VW;
+  const g = gran.getContext('2d');
   const cancha = CANCHAS[opciones.cancha] || CANCHAS.ruta404;
   const { cv: fondo, M } = fondoFijo(cancha);
   const gente = cancha.publico === 'tribuna' ? armarPublico(M) : [];
   const hombres = cancha.publico === 'hombresTanque' ? armarHombres(M) : [];
   const autos = COLOR_AUTO.map(spritesAuto);
   const pelotas = cancha.pelota === 'luzMala' ? spritesLuzMala() : spritesPelota();
-  const oscuro = document.createElement('canvas'); oscuro.width = BW; oscuro.height = BH;
+  const oscuro = document.createElement('canvas'); oscuro.width = VW; oscuro.height = VW;
   const octx = oscuro.getContext('2d');
   const marcas = document.createElement('canvas'); marcas.width = WW; marcas.height = WH;
   const mctx = marcas.getContext('2d');
@@ -328,9 +334,9 @@ export function crearPintor(canvas, opciones = {}) {
     }
     // cada tanto, una franja de glitch cruza la ruta
     if ((t % 420) < 4) {
-      const y = Math.round(cam.y) + Math.floor(hash(t >> 4, 5, 5) * BH);
-      b.fillStyle = 'rgba(40,220,255,.25)'; b.fillRect(cam.x, y, BW, 1);
-      b.fillStyle = 'rgba(255,40,90,.25)'; b.fillRect(cam.x, y + 2, BW, 1);
+      const y = Math.round(cam.y) + Math.floor(hash(t >> 4, 5, 5) * VW);
+      b.fillStyle = 'rgba(40,220,255,.25)'; b.fillRect(cam.x, y, VW, 1);
+      b.fillStyle = 'rgba(255,40,90,.25)'; b.fillRect(cam.x, y + 2, VW, 1);
     }
   }
 
@@ -386,14 +392,12 @@ export function crearPintor(canvas, opciones = {}) {
   function avisoCamion(s) {
     const k = s.camion;
     if (!k || k.estado !== 'aviso' || (s.cuadro >> 3) % 2) return;
-    const x = Math.max(16, Math.min(BW - 48, bx(k.x) - cam.x)), y = k.dir > 0 ? 24 : BH - 34;
+    const p = aPantalla(bx(k.x), by(k.dir > 0 ? CAMPO.T - 200 : CAMPO.B + 200));
+    const x = Math.max(16, Math.min(BW - 48, p.x)), y = Math.max(24, Math.min(BH - 34, p.y));
     b.fillStyle = '#e43a3a'; b.fillRect(Math.round(x) - 14, y - 2, 28, 14);
     b.fillStyle = '#fff8c8'; b.fillRect(Math.round(x) - 10, y + 2, 4, 6); b.fillRect(Math.round(x) + 6, y + 2, 4, 6);
     b.fillStyle = '#140f22'; b.fillRect(Math.round(x) - 3, y + 1, 6, 8);
-    // flecha hacia adentro
-    b.fillStyle = '#e43a3a';
-    const fy = k.dir > 0 ? y + 14 : y - 6;
-    for (let r = 0; r < 4; r++) b.fillRect(Math.round(x) - 3 + r, fy + (k.dir > 0 ? r : -r), 7 - r * 2, 1);
+
   }
 
   // Radar: la cancha entera en chiquito, arriba a la derecha.
@@ -416,8 +420,8 @@ export function crearPintor(canvas, opciones = {}) {
   function noche(s) {
     octx.setTransform(1, 0, 0, 1, 0, 0);
     octx.globalCompositeOperation = 'source-over';
-    octx.clearRect(0, 0, BW, BH);
-    octx.fillStyle = 'rgba(6,8,22,.6)'; octx.fillRect(0, 0, BW, BH);
+    octx.clearRect(0, 0, VW, VW);
+    octx.fillStyle = 'rgba(6,8,22,.6)'; octx.fillRect(0, 0, VW, VW);
     octx.setTransform(1, 0, 0, 1, -cam.x, -cam.y);
     octx.globalCompositeOperation = 'destination-out';
     const aro = (x, y, r, a) => { octx.fillStyle = `rgba(0,0,0,${a})`; octx.beginPath(); octx.arc(Math.round(x), Math.round(y), r, 0, Math.PI * 2); octx.fill(); };
@@ -744,28 +748,41 @@ export function crearPintor(canvas, opciones = {}) {
 
   function limpiarMarcas() { mctx.clearRect(0, 0, WW, WH); }
 
-  // Cámara: sigue a tu auto (o a la pelota en el menú), mirando un poco hacia adonde va.
-  const cam = { x: (WW - BW) / 2, y: (WH - BH) / 2 };
+  // Cámara: el centro (cx, cy) es tu auto en el mundo y el ángulo hace que mire para arriba.
+  // En el menú no gira y sigue despacio a la Luz Mala.
+  const cam = { x: 0, y: 0, cx: WW / 2, cy: WH / 2, ang: 0, ancla: BH / 2 };
   function moverCamara(s, extra) {
-    let tx, ty, suave = 0.12;
     const c = extra.seguir >= 0 ? s.autos[extra.seguir] : null;
-    if (extra.pantalla === 'menu' || !c) { tx = bx(s.pelota.x); ty = by(s.pelota.y); suave = 0.04; }
-    else { tx = bx(c.x) + c.vx * 9 * K; ty = by(c.y) + c.vy * 9 * K; if (c.aplastado) suave = 0.03; }
-    if (s.fase === 'cuenta' && s.reloj > 150) suave = 0.35;     // al reubicar, la cámara salta rápido
-    const ox = Math.max(0, Math.min(WW - BW, tx - BW / 2)), oy = Math.max(0, Math.min(WH - BH, ty - BH / 2));
-    cam.x += (ox - cam.x) * suave; cam.y += (oy - cam.y) * suave;
+    let tx, ty, angObj = cam.ang, suave = 0.25, ancla = ANCLA_Y;
+    if (extra.pantalla === 'menu' || !c) { tx = bx(s.pelota.x); ty = by(s.pelota.y); angObj = 0; suave = 0.04; ancla = BH / 2; }
+    else {
+      tx = bx(c.x); ty = by(c.y);
+      if (!c.aplastado) angObj = -(c.rot + 90) * Math.PI / 180;
+      if (c.aplastado) suave = 0.05;
+    }
+    if (s.fase === 'cuenta' && s.reloj > 150) suave = 0.6;      // al reubicar, la cámara salta rápido
+    cam.cx += (tx - cam.cx) * suave; cam.cy += (ty - cam.cy) * suave;
+    let d = angObj - cam.ang; d = Math.atan2(Math.sin(d), Math.cos(d));
+    cam.ang += d * (suave > 0.5 ? 1 : 0.14);
+    cam.ancla += (ancla - cam.ancla) * 0.1;
+    cam.x = Math.round(cam.cx - VW / 2); cam.y = Math.round(cam.cy - VW / 2);
+  }
+  // Un punto del mundo (en píxeles del buffer) a la pantalla girada.
+  function aPantalla(wx, wy) {
+    const dx = wx - cam.cx, dy = wy - cam.cy, co = Math.cos(cam.ang), si = Math.sin(cam.ang);
+    return { x: BW / 2 + dx * co - dy * si, y: cam.ancla + dx * si + dy * co };
   }
 
   function dibujar(s, extra = {}) {
     zonas.length = 0;
     if (festejo > 0) festejo--;
     moverCamara(s, extra);
-    const camX = Math.round(cam.x), camY = Math.round(cam.y);
-    cam.x = camX + (cam.x - camX); // (se usa redondeado al dibujar)
+    // 1) el mundo, alrededor de la cámara, en el cuadrado grande
+    b = g;
+    b.setTransform(1, 0, 0, 1, 0, 0);
+    b.fillStyle = '#141018'; b.fillRect(0, 0, VW, VW);
     b.save();
-    b.translate(-camX, -camY);
-    const camR = { x: camX, y: camY };
-    const camOriginal = { x: cam.x, y: cam.y }; cam.x = camX; cam.y = camY;
+    b.translate(-cam.x, -cam.y);
     b.drawImage(fondo, 0, 0);
     publico(s);
     b.drawImage(marcas, 0, 0);
@@ -783,9 +800,22 @@ export function crearPintor(canvas, opciones = {}) {
     }
     efectos(s);
     const r = extra.red;
-    if (r && r.lado >= 0 && extra.pantalla !== 'menu') marcarPropio(s, r.lado);
     b.restore();
-    cam.x = camOriginal.x; cam.y = camOriginal.y;
+    // 2) el mundo girado en la pantalla, con tu auto en el ancla mirando arriba
+    b = vista;
+    b.setTransform(1, 0, 0, 1, 0, 0);
+    b.fillStyle = '#141018'; b.fillRect(0, 0, BW, BH);
+    b.save();
+    b.translate(BW / 2, Math.round(cam.ancla)); b.rotate(cam.ang);
+    b.drawImage(gran, Math.round(cam.x - cam.cx), Math.round(cam.y - cam.cy));
+    b.restore();
+    // tu auto, derecho (el del mundo quedó girado y con escalones; este lo tapa)
+    const propio = extra.seguir >= 0 && extra.pantalla !== 'menu' ? s.autos[extra.seguir] : null;
+    if (propio && !propio.aplastado) {
+      const alto = propio.salto > 0 ? Math.sin(Math.PI * (1 - propio.salto / 22)) * 7 : 0;
+      const p = aPantalla(bx(propio.x), by(propio.y));
+      b.drawImage(autos[extra.seguir][ANGULOS * 3 / 4], Math.round(p.x - TAM / 2), Math.round(p.y - TAM / 2 - alto));
+    }
     hud(s);
     if (extra.pantalla !== 'menu') { radar(s, extra.seguir); avisoCamion(s); }
     if (extra.pantalla === 'menu') portada(s, extra);
@@ -813,5 +843,5 @@ export function crearPintor(canvas, opciones = {}) {
     ctx.drawImage(buf, tx * k, ty * k, BW * k, BH * k);
   }
 
-  return { dibujar, limpiarMarcas, botonEn, avisarCopiado: () => { copiado = 90; } };
+  return { dibujar, limpiarMarcas, botonEn, anguloCamara: () => cam.ang * 180 / Math.PI, avisarCopiado: () => { copiado = 90; } };
 }

@@ -115,7 +115,7 @@ function leer(i) {
 }
 // Contra el bot u online se maneja con cualquiera de las dos manos del teclado o con el táctil.
 function leerPropio(auto) {
-  const a = leer(0), b = leer(1), t = tactil ? tactil.leer(auto) : {};
+  const a = leer(0), b = leer(1), t = tactil ? tactil.leer(auto, pintor.anguloCamara ? pintor.anguloCamara() : 0) : {};
   const e = {};
   for (const k of Object.keys(a)) e[k] = a[k] || b[k] || !!t[k];
   return e;
