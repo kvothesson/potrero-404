@@ -27,6 +27,9 @@ const CLAVE_YO = 'potrero404.yo';
 function cargarYo() { try { return JSON.parse(localStorage.getItem(CLAVE_YO)) || null; } catch { return null; } }
 function guardarYo(y) { try { if (y) localStorage.setItem(CLAVE_YO, JSON.stringify(y)); else localStorage.removeItem(CLAVE_YO); } catch { /* sin almacenamiento */ } }
 let yo = cargarYo();
+// Cámara a la pelota (como la ball cam de Rocket League): prendida de entrada, se recuerda.
+let camPelota = (() => { try { return localStorage.getItem('potrero404.camPelota') !== '0'; } catch { return true; } })();
+function alternarCamara() { camPelota = !camPelota; try { localStorage.setItem('potrero404.camPelota', camPelota ? '1' : '0'); } catch { /* sin almacenamiento */ } }
 const codigoRespaldo = () => (yo ? `${yo.id}-${yo.llave}` : '');
 
 async function api(ruta, cuerpo) {
@@ -149,6 +152,7 @@ addEventListener('keydown', (e) => {
   apretadas.add(e.code);
   if (e.repeat) return;
   if (e.code === 'KeyM') sonido.alternar();
+  if (e.code === 'KeyB') alternarCamara();
   if (pantalla === 'menu') {
     // 1 o Enter: contra la máquina · 2: online con Elo · 3: sala con amigos · 4: ranking
     if (e.code === 'Enter' || e.code === 'NumpadEnter' || e.code === 'Digit1') empezar('bot');
@@ -192,6 +196,7 @@ canvas.addEventListener('pointerdown', (e) => {
   else if (id === 'copiarRespaldo') copiar(codigoRespaldo(), false);
   else if (id === 'restaurar') pedirRespaldo();
   else if (id === 'sonido') sonido.alternar();
+  else if (id === 'camPelota') alternarCamara();
   else if (id === 'pausa') pausa = !pausa;
 });
 
@@ -230,7 +235,7 @@ function vista() {
 function extras() {
   return {
     pantalla: pantalla === 'amigo' ? 'online' : pantalla, rankeada: pantalla === 'online', pausa, tactil: !!tactil, seguir: aQuienSigo(),
-    yo, ranking, mostrarRespaldo, respaldo: codigoRespaldo(),
+    yo, ranking, mostrarRespaldo, respaldo: codigoRespaldo(), camPelota,
     red: red && { lado: red.lado, jugadores: red.jugadores, codigo: red.codigo, caido: red.caido, conectado: red.conectado, ping: red.ping,
       listo: !!red.estado, nombres: red.nombres, elo: red.elo, rankeada: pantalla === 'online' },
   };

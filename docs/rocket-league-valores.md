@@ -72,6 +72,18 @@ Rocket League tiene una cámara detrás del auto, en 3D. En la configuración vi
 | Velocidad de giro (*swivel*) | 2,5 a 4,7 | qué tan rápido gira la cámara para seguir al auto | hoy 0,14 por cuadro; hacerlo un ajuste |
 | **Cámara a la pelota** (*ball cam*) | se prende y se apaga con un botón; casi todos juegan con ella prendida | la cámara mira desde el auto hacia la pelota, no hacia donde apunta el auto | la técnica más importante para copiar: un botón que hace que "arriba" sea hacia la pelota |
 
+## Aplicado (2026-11-15)
+
+Todo lo de la lista de abajo ya está en `src/sim.js` y `src/render-pixel.js`. Medido con `UU = 9,4/2300` (1 uu/s de Rocket League = 0,0041 píxeles por cuadro):
+
+- **Acelerar:** al 98 % del tope en 1,6 s; con nitro, al tope en 1,3 s.
+- **Frenada:** de 5,4 a 0 en 0,3 s.
+- **Giro:** 129 grados por segundo el azul y 117 el rojo, a cualquier velocidad (Rocket League: 115 a 135).
+- **Freno de mano:** entra en unos 0,2 s, como `POWERSLIDE_RISE_RATE` = 5/s.
+- **Golpe a la pelota:** de frente sale 1,46 veces más rápida que el auto; de refilón abre 28 grados.
+- **Demolición:** con nitro al 96 % del tope o más, chocar de frente destruye al otro, que vuelve a los 3 s.
+- **Cámara a la pelota:** prendida de entrada, con la tecla B o el botón de abajo del radar. La cámara además se corre según la velocidad.
+
 ## Lo que más cambiaría el juego, en orden
 
 1. **Empujón extra de la pelota y masa 6 a 1:** los golpes se sienten como en Rocket League y apuntar pasa a importar.

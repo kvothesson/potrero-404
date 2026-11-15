@@ -827,8 +827,14 @@ export function crearPintor(canvas, opciones = {}) {
     if (extra.pantalla === 'menu' || !c) { tx = bx(s.pelota.x); ty = by(s.pelota.y); angObj = 0; suave = 0.04; ancla = BH / 2; }
     else {
       tx = bx(c.x); ty = by(c.y);
-      if (!c.aplastado) angObj = -(c.rot + 90) * Math.PI / 180;
+      // cámara a la pelota (ball cam de Rocket League): "arriba" es hacia la Luz Mala;
+      // si no, "arriba" es hacia donde apunta tu auto
+      const pdx = s.pelota.x - c.x, pdy = s.pelota.y - c.y;
+      if (extra.camPelota && Math.hypot(pdx, pdy) > 30) angObj = -(Math.atan2(pdy, pdx) * 180 / Math.PI + 90) * Math.PI / 180;
+      else if (!c.aplastado) angObj = -(c.rot + 90) * Math.PI / 180;
       if (c.aplastado) suave = 0.05;
+      // como la "rigidez" de Rocket League: cuanto más rápido, más abajo el auto y más se ve adelante
+      ancla = ANCLA_Y + Math.min(1, Math.abs(c.vel || 0) / 9) * BH * 0.1;
     }
     if (s.fase === 'cuenta' && s.reloj > 150) suave = 0.6;      // al reubicar, la cámara salta rápido
     cam.cx += (tx - cam.cx) * suave; cam.cy += (ty - cam.cy) * suave;
@@ -884,11 +890,20 @@ export function crearPintor(canvas, opciones = {}) {
     if (propio && !propio.aplastado) {
       const alto = propio.salto > 0 ? Math.sin(Math.PI * (1 - propio.salto / 22)) * 7 : 0;
       const p = aPantalla(bx(propio.x), by(propio.y));
-      b.drawImage(autos[extra.seguir][ANGULOS * 3 / 4], Math.round(p.x - TAM / 2), Math.round(p.y - TAM / 2 - alto));
+      const enPantalla = ((propio.rot + cam.ang * 180 / Math.PI) % 360 + 360) % 360;   // con cámara a la pelota, tu auto puede girar en pantalla
+      const k = Math.round(enPantalla / 360 * ANGULOS) % ANGULOS;
+      b.drawImage(autos[extra.seguir][k], Math.round(p.x - TAM / 2), Math.round(p.y - TAM / 2 - alto));
     }
     hud(s);
     const enJuego = extra.pantalla === 'bot' || extra.pantalla === 'online';
-    if (enJuego) { radar(s, extra.seguir); avisoCamion(s); }
+    if (enJuego) {
+      radar(s, extra.seguir); avisoCamion(s);
+      // botón de cámara a la pelota, abajo del radar: la Luz Mala prendida o apagada
+      boton('camPelota', BW - 38, 74, 34, 16, extra.camPelota ? { cuerpo: '#2f8f6a', lado: '#1c5a42' } : GRIS, (x, y) => {
+        b.globalAlpha = extra.camPelota ? 1 : 0.4; b.drawImage(pelotas[0], x + 3, y + 1); b.globalAlpha = 1;
+        if (!extra.tactil) tecla(b, 'B', x + 18, y + 1);
+      });
+    }
     if (extra.pantalla === 'menu') portada(s, extra);
     else if (extra.pantalla === 'ranking') pantallaRanking(extra);
     else if (extra.pantalla === 'nombre') pantallaNombre();

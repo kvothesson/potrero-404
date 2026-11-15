@@ -29,6 +29,10 @@ Esc pausa, R reinicia desde la pausa y M apaga el sonido. Gana el primero en hac
 - **Salto cuántico:** si los dos autos la aprietan a la vez y queda quieta en el medio, la Luz Mala pega un salto cuántico. Desaparece dejando un fantasma rojo y celeste, y reaparece 48 unidades al costado, para un lado al azar, con algo de envión.
 - **Azar sincronizado:** el azar sale del estado del juego (`azar()` en `sim.js`), no de `Math.random`, así da lo mismo en el navegador y en el servidor y el online no se desincroniza.
 
+## Física y cámara a lo Rocket League
+
+Los valores salen de RocketSim y de mediciones públicas de la comunidad, no de los archivos del juego. Están todos, con fuentes, en `docs/rocket-league-valores.md`: el empujón extra al pegarle a la pelota, la masa 6 a 1, la curva de aceleración, el giro y el freno de mano gradual, la demolición y la **cámara a la pelota** (tecla B).
+
 ## Ranking
 
 - **Tres modos, para un jugador por compu:**
