@@ -118,8 +118,9 @@ export function paso(s, entradas) {
   chocarAutos(s);
   s.autos.forEach((c) => chocarPared(s, c));
   s.autos.forEach((c) => juntarNitro(s, c));
-  s.autos.forEach((c) => pegarPelota(s, c));
-  moverPelota(s);
+  const viejo = s.fisica === '2016';
+  s.autos.forEach((c) => (viejo ? pegarPelota2016 : pegarPelota)(s, c));
+  (viejo ? moverPelota2016 : moverPelota)(s);
   s.autos.forEach(medir);
   revisarGol(s);
   s.pastillas.forEach((p) => { if (!p.activa && --p.espera <= 0) { p.activa = true; s.eventos.push({ t: 'nitroVuelve' }); } });
@@ -299,6 +300,47 @@ function pegarPelota(s, c) {
   limitarPelota(b, enElAire ? VEL_MAX_PELOTA * 1.3 : VEL_MAX_PELOTA);
   if (s.cuadro - (c.ultimoToque || -99) > 6) s.eventos.push({ t: 'toque', quien: c.i, fuerza: Math.hypot(b.vx, b.vy), fuerte: enElAire });
   c.ultimoToque = s.cuadro;
+}
+
+// ---------- Física 2016 de la pelota (Ball.as), para comparar con s.fisica = '2016' ----------
+// La pelota se guarda como ángulo + velocidad. El rebote es la reflexión sobre una recta:
+// ángulo nuevo = 360 − ángulo + 2 × ángulo de la pared (o del costado del auto).
+const ang = (vx, vy) => ((Math.atan2(vy, vx) * 180 / Math.PI) + 360) % 360;
+function pegarPelota2016(s, c) {
+  const b = s.pelota, co = Math.cos(rad(c.rot)), si = Math.sin(rad(c.rot));
+  const rx = b.x - c.x, ry = b.y - c.y, lx = rx * co + ry * si, ly = -rx * si + ry * co;
+  const hx = LARGO / 2, hy = ANCHO / 2;
+  const qx = Math.max(-hx, Math.min(hx, lx)), qy = Math.max(-hy, Math.min(hy, ly));
+  const d = Math.hypot(lx - qx, ly - qy);
+  const toca = d < R_PELOTA;
+  if (!toca) { c.changePower = false; c.changeDirection = false; return; }
+  // sacarla de adentro del auto (el original no lo hacía y a veces quedaba trabada)
+  if (d > 1e-6) { const nlx = (lx - qx) / d, nly = (ly - qy) / d, pen = R_PELOTA - d; b.x += (nlx * co - nly * si) * pen; b.y += (nlx * si + nly * co) * pen; }
+  b.angulo = b.angulo ?? ang(b.vx, b.vy); b.rapidez = b.rapidez ?? Math.hypot(b.vx, b.vy);
+  const cara = Math.abs(lx - qx) > Math.abs(ly - qy) ? (lx > 0 ? 'frente' : 'cola') : 'costado';
+  const fuerza = Math.abs(c.vel);
+  if (cara === 'frente' && !c.changePower) { b.angulo = c.rot; if (b.rapidez < fuerza) b.rapidez = fuerza; c.changePower = true; }
+  else if (cara === 'cola' && !c.changePower) { b.angulo = c.rot + 180; if (b.rapidez < fuerza) b.rapidez = fuerza; c.changePower = true; }
+  else if (cara === 'costado' && !c.changeDirection && !c.changePower) { b.angulo = 360 - b.angulo + 2 * c.rot; c.changeDirection = true; }
+  b.angulo = ((b.angulo % 360) + 360) % 360;
+  b.vx = Math.cos(rad(b.angulo)) * b.rapidez; b.vy = Math.sin(rad(b.angulo)) * b.rapidez;
+  if (s.cuadro - (c.ultimoToque || -99) > 6) s.eventos.push({ t: 'toque', quien: c.i, fuerza: b.rapidez });
+  c.ultimoToque = s.cuadro;
+}
+function moverPelota2016(s) {
+  const b = s.pelota;
+  b.angulo = b.angulo ?? ang(b.vx, b.vy); b.rapidez = b.rapidez ?? Math.hypot(b.vx, b.vy);
+  if (b.rapidez > 0) b.rapidez = Math.max(0, b.rapidez - 0.01);       // speedReduction
+  b.vx = Math.cos(rad(b.angulo)) * b.rapidez; b.vy = Math.sin(rad(b.angulo)) * b.rapidez;
+  b.x += b.vx; b.y += b.vy; b.giro += b.rapidez * 0.06;
+  const n = empujarFuera(b, R_PELOTA);
+  if (n && !b.changeSpeed) {
+    const anguloPared = ang(n.nx, n.ny) + 90;                        // la pared es perpendicular a su normal
+    b.angulo = (((360 - b.angulo + 2 * anguloPared) % 360) + 360) % 360;
+    b.changeSpeed = true;
+    s.eventos.push({ t: 'pared', fuerza: b.rapidez });
+  } else if (!n) b.changeSpeed = false;
+  b.vx = Math.cos(rad(b.angulo)) * b.rapidez; b.vy = Math.sin(rad(b.angulo)) * b.rapidez;
 }
 
 function limitarPelota(b, max = VEL_MAX_PELOTA) {
