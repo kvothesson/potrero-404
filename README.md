@@ -29,6 +29,20 @@ Esc pausa, R reinicia desde la pausa y M apaga el sonido. Gana el primero en hac
 - **Salto cuántico:** si los dos autos la aprietan a la vez y queda quieta en el medio, la Luz Mala pega un salto cuántico. Desaparece dejando un fantasma rojo y celeste, y reaparece 48 unidades al costado, para un lado al azar, con algo de envión.
 - **Azar sincronizado:** el azar sale del estado del juego (`azar()` en `sim.js`), no de `Math.random`, así da lo mismo en el navegador y en el servidor y el online no se desincroniza.
 
+## Ranking
+
+- **Tres modos, para un jugador por compu:**
+  - **Contra la máquina:** práctica, no cuenta para el ranking.
+  - **Online:** siempre con Elo.
+  - **Sala con amigos:** por link, personalizada, sin Elo.
+- **Online:** el servidor te busca un rival. Si en 8,5 segundos no aparece nadie, entra una **IA** de Elo parecido al tuyo. Hay 8 IAs, niveles 1 a 8 de `src/bot.js`, con nombres de la Ruta 404.
+- **Una sola tabla:** humanos e IAs, ordenados por **Elo**. Las IAs llevan un robotito, solo en la tabla; durante el partido no se marcan. Se arranca en 1000. K = 32 en las primeras 20 partidas, después 20, y en las IAs 16. Irse antes de terminar una rankeada es perder.
+- **Sin mail ni contraseña:** elegís un nombre y tu navegador guarda un id y una llave secreta. En la base va el hash de la llave. Con el **código de respaldo** (botón de la llave en el ranking) recuperás tu puesto en otro navegador.
+- **Seguridad:** el resultado lo anota el servidor de la sala, que es el que vio el partido, nunca el navegador.
+- **Dónde se guarda:** en Cloudflare D1 (`potrero-404-ranking`), que deja volver a cualquier momento de los últimos 30 días. En la PC, el servidor local usa SQLite en `server/datos/ranking.sqlite`.
+- **Código:** `server/ranking.js` (Elo, registro, tabla), `server/api.js` (rutas y fila) y `server/sala.js` (sala rankeada con IA). Los usan igual el servidor local y `nube/`.
+- **Prueba de punta a punta:** `node server/prueba-ranking.mjs <servidor>`.
+
 ## Canchas
 
 Cada cancha está en `src/canchas.js`: elige el color de cada parte del fondo y qué decorado lleva.

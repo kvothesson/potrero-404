@@ -630,8 +630,64 @@ export function crearPintor(canvas, opciones = {}) {
     marcador(s, BW / 2, y0 + 50, 2, i);
     boton('otra', BW / 2 - 30, y0 + 86, 60, 22, COLOR_AUTO[i], (x, y) => {
       if (!extra.tactil) tecla(b, '⏎', x + 8, y + 4, 21);
-      icono(b, 'otra', extra.tactil ? x + 21 : x + 36, y + 6, extra.tactil ? 2 : 1);
+      icono(b, extra.rankeada ? 'globo' : 'otra', extra.tactil ? x + 21 : x + 36, y + 6, extra.tactil ? 2 : 1);
     });
+    // rankeada: cuánto Elo ganaste o perdiste, al lado de tu color
+    const r = extra.red;
+    if (r && r.rankeada && r.elo && r.lado >= 0) {
+      const d = r.elo.cambio[r.lado];
+      texto(b, `${d >= 0 ? '+' : ''}${d}`, r.lado === 0 ? BW / 2 - 96 : BW / 2 + 96, y0 + 58, { esc: 2, alinear: 'centro', color: d >= 0 ? '#7cf09a' : '#ff6a6a', sombra: P.contorno });
+      texto(b, r.elo.elo[r.lado], r.lado === 0 ? BW / 2 - 96 : BW / 2 + 96, y0 + 78, { alinear: 'centro', color: '#c8f4ff' });
+    }
+    boton('menu', 8, BH - 28, 24, 20, GRIS, (x, y) => icono(b, 'casa', x + 7, y + 5));
+  }
+
+  // Ranking: humanos e IAs mezclados por Elo. Las IAs llevan un robotito; vos estás resaltado.
+  function pantallaRanking(extra) {
+    b.fillStyle = 'rgba(20,15,34,.9)'; b.fillRect(0, 0, BW, BH);
+    icono(b, 'trofeo', BW / 2 - 18, 8, 4);
+    const d = extra.ranking;
+    if (!d) { const t = (Date.now() / 140 | 0) % 8; for (let k = 0; k < 8; k++) { b.fillStyle = k === t ? '#fff4b0' : '#3a3456'; b.fillRect(BW / 2 - 30 + k * 8, 120, 5, 5); } }
+    else if (d.error) { icono(b, 'globo', BW / 2 - 18, 110, 4); icono(b, 'cruz', BW / 2 - 18, 110, 4); }
+    else {
+      const filas = d.lista.slice(0, 14);
+      const fila = (f, y) => {
+        if (f.yo) { b.fillStyle = '#3a6a5a'; b.fillRect(8, y - 3, BW - 16, 13); }
+        texto(b, f.puesto, 30, y, { alinear: 'der', color: f.puesto <= 3 ? '#ffd040' : '#9890c0' });
+        if (f.ia) icono(b, 'robot', 36, y - 1);
+        texto(b, f.nombre, f.ia ? 48 : 38, y, { color: f.yo ? '#ffffff' : '#e8e4ff' });
+        texto(b, f.elo, BW - 56, y, { alinear: 'der', color: '#fff4b0' });
+        icono(b, 'trofeo', BW - 52, y - 1);
+        texto(b, `${f.victorias}/${f.partidas}`, BW - 12, y, { alinear: 'der', color: '#9890c0' });
+      };
+      filas.forEach((f, k) => fila(f, 52 + k * 15));
+      if (d.propio) { b.fillStyle = '#5a5480'; b.fillRect(20, 52 + 14 * 15 + 2, BW - 40, 1); fila(d.propio, 52 + 15 * 15); }
+    }
+    // tu código de respaldo: con él recuperás tu puesto en otro navegador
+    const y = BH - 92;
+    if (extra.yo) {
+      boton('respaldo', 14, y, 40, 22, GRIS, (x, yy) => { icono(b, 'llave', x + 6, yy + 6); icono(b, 'copiar', x + 22, yy + 6); });
+      if (extra.mostrarRespaldo) {
+        b.fillStyle = '#140f22'; b.fillRect(60, y - 2, BW - 74, 26);
+        const c = extra.respaldo;
+        texto(b, c.slice(0, 18), 66, y + 2, { color: '#c8f4ff', sombra: null });
+        texto(b, c.slice(18), 66, y + 12, { color: '#c8f4ff', sombra: null });
+        boton('copiarRespaldo', BW - 40, y, 24, 22, GRIS, (x, yy) => icono(b, copiado > 0 ? 'tilde' : 'copiar', x + 7, yy + 6));
+        if (copiado > 0) copiado--;
+      }
+    }
+    // pegar un código de respaldo
+    boton('restaurar', 14, y + 34, 40, 22, GRIS, (x, yy) => { icono(b, 'llave', x + 6, yy + 6); icono(b, 'flecha', x + 22, yy + 6); });
+    boton('menu', 8, BH - 28, 24, 20, GRIS, (x, yy) => icono(b, 'casa', x + 7, yy + 5));
+  }
+
+  // Elegir nombre: tu auto y la flecha al campo de texto (que es HTML, encima del canvas).
+  function pantallaNombre() {
+    b.fillStyle = 'rgba(20,15,34,.9)'; b.fillRect(0, 0, BW, BH);
+    autoChico(0, BW / 2, 120, ANGULOS * 3 / 4);
+    icono(b, 'trofeo', BW / 2 + 22, 112, 2);
+    for (let r = 0; r < 5; r++) { b.fillStyle = '#9890b8'; b.fillRect(BW / 2 - 4 + r, 150 + r, 9 - r * 2, 1); }
+    boton('menu', 8, BH - 28, 24, 20, GRIS, (x, y) => icono(b, 'casa', x + 7, y + 5));
   }
 
   function cartelPausa(extra) {
@@ -691,18 +747,23 @@ export function crearPintor(canvas, opciones = {}) {
     for (let k = 0; k < GOLES_PARA_GANAR; k++) b.drawImage(pelotas[(k * 3 + (s.cuadro >> 3)) & 7], BW / 2 - 46 + k * 16, 266);
     icono(b, 'flecha', BW / 2 + 2, 268); icono(b, 'trofeo', BW / 2 + 16, 266, 2);
 
-    // tres modos: dos en un teclado, contra la máquina, online con un link
-    // un jugador por compu: contra la máquina u online con un link
-    const modos = [['bot', 0], ['online', 1]];
-    const w = 76, sep = 10, total = modos.length * w + (modos.length - 1) * sep;
-    modos.forEach(([id], k) => {
-      boton(id, BW / 2 - total / 2 + k * (w + sep), 292, w, 52, id === 'online' ? { cuerpo: '#2f8f6a', lado: '#1c5a42' } : GRIS, (x, y) => {
-        if (id === 'local') { autoChico(0, x + 22, y + 20, ANGULOS / 2); autoChico(1, x + 54, y + 20, 0); icono(b, 'teclado', x + 30, y + 38); }
-        if (id === 'bot') { autoChico(0, x + 22, y + 22, 0); icono(b, 'robot', x + 42, y + 10, 3); }
-        if (id === 'online') { icono(b, 'globo', x + 11, y + 8, 4); autoChico(1, x + 60, y + 30, ANGULOS * 3 / 4); }
+    // un jugador por compu: contra la máquina (práctica), online con Elo, sala con amigos (sin Elo)
+    const modos = [['bot', GRIS], ['online', { cuerpo: '#2f8f6a', lado: '#1c5a42' }], ['amigo', { cuerpo: '#4a4a9a', lado: '#2a2a62' }]];
+    const w = 78, sep = 8, total = modos.length * w + (modos.length - 1) * sep;
+    modos.forEach(([id, col], k) => {
+      boton(id, BW / 2 - total / 2 + k * (w + sep), 290, w, 52, col, (x, y) => {
+        if (id === 'bot') { autoChico(0, x + 22, y + 26, 0); icono(b, 'robot', x + 42, y + 12, 3); }
+        if (id === 'online') { icono(b, 'globo', x + 8, y + 10, 3); icono(b, 'trofeo', x + 42, y + 12, 3); }
+        if (id === 'amigo') { autoChico(0, x + 18, y + 26, 0); autoChico(1, x + 60, y + 26, ANGULOS / 2); icono(b, 'copiar', x + 30, y + 18, 2); }
         if (!extra.tactil) tecla(b, String(k + 1), x + w - 16, y - 7);
       });
     });
+    // ranking, con tu nombre al lado si ya tenés
+    boton('ranking', BW / 2 - 22, BH - 30, 44, 22, { cuerpo: '#7a5a20', lado: '#4a3410' }, (x, y) => {
+      icono(b, 'trofeo', x + 8, y + 4); icono(b, 'flecha', x + 18, y + 6); icono(b, 'robot', x + 28, y + 4);
+      if (!extra.tactil) tecla(b, '4', x + 44 - 8, y - 9);
+    });
+    if (extra.yo) texto(b, extra.yo.nombre, BW / 2, BH - 42, { alinear: 'centro', color: '#c8f4ff' });
     if (!extra.tactil) { tecla(b, 'ESC', 8, BH - 22, 21); icono(b, 'pausa', 32, BH - 20); }
     boton('sonido', BW - 30, BH - 26, 22, 18, GRIS, (x, y) => { icono(b, 'sonido', x + 7, y + 4); });
     if (!extra.tactil) tecla(b, 'M', BW - 48, BH - 24);
@@ -711,12 +772,21 @@ export function crearPintor(canvas, opciones = {}) {
   // Sala online: código grande, botón para copiar o compartir el link y quién falta.
   let copiado = 0;
   function esperaSala(r, extra) {
-    const y0 = franja(170, '#2f8f6a');
-    icono(b, 'globo', BW / 2 - 18, y0 + 8, 4);
-    texto(b, r.codigo || '', BW / 2, y0 + 50, { esc: 4, alinear: 'centro', color: '#fff4b0', sombra: P.contorno });
-    boton('copiar', BW / 2 - 34, y0 + 86, 68, 26, { cuerpo: '#2f8f6a', lado: '#1c5a42' }, (x, y) => {
-      icono(b, copiado > 0 ? 'tilde' : 'copiar', x + 25, y + 4, 2);
-    });
+    const y0 = franja(170, r.rankeada ? '#2f8f6a' : '#4a4a9a');
+    if (r.rankeada) {
+      // buscando rival: el globo gira y titila el trofeo
+      icono(b, 'globo', BW / 2 - 18, y0 + 14, 4);
+      icono(b, 'trofeo', BW / 2 + 26, y0 + 26, 2);
+      const t = (Date.now() / 140 | 0) % 8;
+      for (let k = 0; k < 8; k++) { b.fillStyle = k === t ? '#fff4b0' : '#3a6a5a'; b.fillRect(BW / 2 - 30 + k * 8, y0 + 70, 5, 5); }
+      if (extra.yo) texto(b, extra.yo.nombre, BW / 2, y0 + 90, { alinear: 'centro', color: '#c8f4ff' });
+    } else {
+      icono(b, 'globo', BW / 2 - 18, y0 + 8, 4);
+      texto(b, r.codigo || '', BW / 2, y0 + 50, { esc: 4, alinear: 'centro', color: '#fff4b0', sombra: P.contorno });
+      boton('copiar', BW / 2 - 34, y0 + 86, 68, 26, { cuerpo: '#4a4a9a', lado: '#2a2a62' }, (x, y) => {
+        icono(b, copiado > 0 ? 'tilde' : 'copiar', x + 25, y + 4, 2);
+      });
+    }
     if (copiado > 0) copiado--;
     // dos lugares: el tuyo y el que falta
     const t = Date.now() / 300;
@@ -817,8 +887,11 @@ export function crearPintor(canvas, opciones = {}) {
       b.drawImage(autos[extra.seguir][ANGULOS * 3 / 4], Math.round(p.x - TAM / 2), Math.round(p.y - TAM / 2 - alto));
     }
     hud(s);
-    if (extra.pantalla !== 'menu') { radar(s, extra.seguir); avisoCamion(s); }
+    const enJuego = extra.pantalla === 'bot' || extra.pantalla === 'online';
+    if (enJuego) { radar(s, extra.seguir); avisoCamion(s); }
     if (extra.pantalla === 'menu') portada(s, extra);
+    else if (extra.pantalla === 'ranking') pantallaRanking(extra);
+    else if (extra.pantalla === 'nombre') pantallaNombre();
     else if (r && r.caido) caido();
     else if (r && (!r.listo || r.jugadores < 2) && r.lado >= 0) esperaSala(r, extra);
     else {

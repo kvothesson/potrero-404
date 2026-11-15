@@ -1,23 +1,58 @@
-// Salas online en Cloudflare. Cada código de sala es un Durable Object: ahí vive la partida,
+// Servidor online en Cloudflare. Cada código de sala es un Durable Object: ahí vive la partida,
 // corre la simulación a 60 cuadros por segundo y les manda el estado a los jugadores.
-// La lógica de la sala es la misma que usa el servidor local (server/sala.js).
+// La lógica es la misma que usa el servidor local: server/sala.js, server/api.js y server/ranking.js.
 import { DurableObject } from "cloudflare:workers";
-// @ts-ignore: módulo JavaScript compartido con el juego
-import { crearSala } from "../../server/sala.js";
+// @ts-ignore: módulos JavaScript compartidos con el juego
+import { crearSala, ESPERA_IA } from "../../server/sala.js";
+// @ts-ignore
+import { api, crearFila, cabecerasCors } from "../../server/api.js";
+// @ts-ignore
+import { preparar, verificar, elegirIA, anotar } from "../../server/ranking.js";
 
-type Conexion = { enviar: (t: string) => void; lado?: number };
+type Env = { DB: any };
 
-export class Sala extends DurableObject {
+// D1 con la interfaz que espera server/ranking.js
+function base(env: Env) {
+	const p = (sql: string, params: unknown[]) => env.DB.prepare(sql).bind(...params);
+	return {
+		todas: async (sql: string, ...params: unknown[]) => (await p(sql, params).all()).results,
+		una: async (sql: string, ...params: unknown[]) => await p(sql, params).first(),
+		correr: async (sql: string, ...params: unknown[]) => await p(sql, params).run(),
+	};
+}
+let preparada = false;
+async function db(env: Env) {
+	const d = base(env);
+	if (!preparada) { await preparar(d); preparada = true; }
+	return d;
+}
+
+export class Sala extends DurableObject<Env> {
 	sala: any = null;
 	reloj: ReturnType<typeof setInterval> | null = null;
 
 	async fetch(req: Request): Promise<Response> {
 		const url = new URL(req.url);
-		if (!this.sala) this.sala = crearSala({ fisica: url.searchParams.get("fisica") });
+		const rankeada = url.searchParams.get("rank") === "1";
+		const d = await db(this.env);
+		// quién sos: obligatorio en la rankeada; en una sala con amigos solo sirve para el nombre
+		const jugador = await verificar(d, url.searchParams.get("id"), url.searchParams.get("llave"));
 		const par = new WebSocketPair();
 		const [cliente, servidor] = Object.values(par);
 		servidor.accept();
-		const con: Conexion = { enviar: (t) => servidor.send(t) };
+		if (rankeada && !jugador) {
+			servidor.send(JSON.stringify({ t: "sinIdentidad" }));
+			servidor.close(1008, "sin identidad");
+			return new Response(null, { status: 101, webSocket: cliente });
+		}
+		if (!this.sala) {
+			this.sala = crearSala({
+				fisica: url.searchParams.get("fisica"), rankeada,
+				pedirIA: (elo: number) => elegirIA(d, elo),
+				alTerminar: (r: unknown) => anotar(d, r),
+			});
+		}
+		const con = { enviar: (t: string) => servidor.send(t), jugador: jugador || null };
 		this.sala.entrar(con);
 		servidor.addEventListener("message", (e) => {
 			if (typeof e.data === "string" && e.data.length < 512) this.sala?.mensaje(con, e.data);
@@ -38,8 +73,14 @@ export class Sala extends DurableObject {
 	}
 }
 
+// Una sola Fila para todo el mundo: junta a los que buscan una rankeada casi a la vez.
+export class Fila extends DurableObject<Env> {
+	buscar = crearFila(ESPERA_IA - 500);
+	async codigo(): Promise<string> { return this.buscar(Date.now()); }
+}
+
 export default {
-	async fetch(req: Request, _env: unknown, ctx: any): Promise<Response> {
+	async fetch(req: Request, env: Env, ctx: any): Promise<Response> {
 		const url = new URL(req.url);
 		if (url.pathname === "/sala") {
 			if (req.headers.get("Upgrade") !== "websocket") return new Response("Esperaba un WebSocket.", { status: 426 });
@@ -48,8 +89,11 @@ export default {
 			const sala = ctx.exports.Sala.get(ctx.exports.Sala.idFromName(codigo));
 			return sala.fetch(req);
 		}
+		const fila = ctx.exports.Fila.get(ctx.exports.Fila.idFromName("global"));
+		const r = await api(req, { db: await db(env), buscar: () => fila.codigo() });
+		if (r) return r;
 		return new Response("Potrero 404: servidor de salas. El juego está en https://kvothesson.com/potrero-404/", {
-			headers: { "content-type": "text/plain; charset=utf-8" },
+			headers: { "content-type": "text/plain; charset=utf-8", ...cabecerasCors(req) },
 		});
 	},
 };

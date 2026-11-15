@@ -4,7 +4,7 @@ import { crearPintor as pintorPixel } from './render-pixel.js';
 import { crearSonido } from './sonido.js';
 import { crearBot } from './bot.js';
 import { crearTactil, esTactil } from './tactil.js';
-import { conectar, codigoNuevo } from './red.js';
+import { conectar, codigoNuevo, urlApi } from './red.js';
 
 const params = new URLSearchParams(location.search);
 // Arte en pixel a lo Super Nintendo; con ?liso se ve el dibujo vectorial anterior.
@@ -18,10 +18,74 @@ const tactil = esTactil() ? crearTactil() : null;
 
 let estado = nuevoEstado();
 if (fisica) estado.fisica = fisica;
-// pantalla: 'menu' | 'local' (2 en un teclado) | 'bot' | 'online'
-let pantalla = 'menu', pausa = false, bot = null, red = null;
+// pantalla: 'menu' | 'bot' (práctica) | 'online' (rankeada, con Elo) | 'amigo' (sala por link, sin Elo)
+//           | 'ranking' | 'nombre' (elegir nombre antes de la primera rankeada)
+let pantalla = 'menu', pausa = false, bot = null, red = null, ranking = null, despuesDelNombre = null, mostrarRespaldo = false;
 
-// Teclas por jugador, con las del original y alternativas cómodas.
+// ---------- quién sos: id + llave guardados en este navegador ----------
+const CLAVE_YO = 'potrero404.yo';
+function cargarYo() { try { return JSON.parse(localStorage.getItem(CLAVE_YO)) || null; } catch { return null; } }
+function guardarYo(y) { try { if (y) localStorage.setItem(CLAVE_YO, JSON.stringify(y)); else localStorage.removeItem(CLAVE_YO); } catch { /* sin almacenamiento */ } }
+let yo = cargarYo();
+const codigoRespaldo = () => (yo ? `${yo.id}-${yo.llave}` : '');
+
+async function api(ruta, cuerpo) {
+  const r = await fetch(urlApi() + ruta, cuerpo ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(cuerpo) } : {});
+  const datos = await r.json().catch(() => ({}));
+  return { ok: r.ok, status: r.status, datos };
+}
+
+// ---------- entrada de texto (nombre o código de respaldo), sin palabras: íconos y un ✓ ----------
+const entrada = document.createElement('form');
+entrada.id = 'entrada'; entrada.className = 'oculto';
+entrada.innerHTML = '<input autocomplete="off" spellcheck="false" maxlength="40" aria-label="nombre"><button type="submit" aria-label="ok">✓</button>';
+document.body.appendChild(entrada);
+const campo = entrada.querySelector('input');
+let alConfirmar = null;
+function pedirTexto({ largo = 16, valor = '', alListo }) {
+  campo.maxLength = largo; campo.value = valor; alConfirmar = alListo;
+  entrada.classList.remove('oculto'); entrada.classList.remove('error');
+  setTimeout(() => campo.focus(), 30);
+}
+function cerrarTexto() { entrada.classList.add('oculto'); campo.blur(); alConfirmar = null; }
+entrada.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (alConfirmar && !(await alConfirmar(campo.value.trim()))) { entrada.classList.add('error'); setTimeout(() => entrada.classList.remove('error'), 500); }
+});
+
+function pedirNombre(despues) {
+  pantalla = 'nombre'; despuesDelNombre = despues;
+  pedirTexto({
+    largo: 16,
+    alListo: async (nombre) => {
+      if (nombre.length < 2) return false;
+      const r = await api('/registro', { nombre }).catch(() => ({ ok: false }));
+      if (!r.ok) return false;
+      yo = { id: r.datos.id, llave: r.datos.llave, nombre: r.datos.nombre };
+      guardarYo(yo); cerrarTexto();
+      const d = despuesDelNombre; despuesDelNombre = null;
+      if (d) d(); else pantalla = 'menu';
+      return true;
+    },
+  });
+}
+
+// Pegar un código de respaldo para recuperar tu puesto en otro navegador.
+function pedirRespaldo() {
+  pedirTexto({
+    largo: 40,
+    alListo: async (codigo) => {
+      const [id, llave] = codigo.split('-');
+      const r = await api(`/yo?id=${encodeURIComponent(id || '')}&llave=${encodeURIComponent(llave || '')}`).catch(() => ({ ok: false }));
+      if (!r.ok) return false;
+      yo = { id, llave, nombre: r.datos.nombre };
+      guardarYo(yo); cerrarTexto(); verRanking();
+      return true;
+    },
+  });
+}
+
+// ---------- modos ----------
 const TECLAS = [
   { up: ['KeyW'], down: ['KeyS'], left: ['KeyA'], right: ['KeyD'], freno: ['ShiftLeft', 'KeyC', 'KeyK'], nitro: ['Space', 'KeyV', 'KeyL'],
     salto: ['KeyE', 'KeyF'] },
@@ -31,49 +95,73 @@ const TECLAS = [
 const apretadas = new Set();
 const DE_JUEGO = new Set(TECLAS.flatMap((t) => Object.values(t).flat()));
 
-function empezar(modo) {
+async function empezar(modo) {
   sonido.despertar();
   pintor.limpiarMarcas();
-  pausa = false;
+  pausa = false; mostrarRespaldo = false;
   if (red) { red.cerrar(); red = null; }
-  pantalla = modo;
   if (modo === 'online') {
+    // rankeada: hace falta un nombre; el servidor busca rival o, si no hay, una IA de tu nivel
+    if (!yo) { pedirNombre(() => empezar('online')); return; }
+    pantalla = 'online';
+    const r = await api('/buscar').catch(() => ({ ok: false }));
+    if (pantalla !== 'online') return;
+    if (!r.ok) { red = { caido: true, cerrar() {}, tic: () => null, vista: () => null }; return; }
+    red = conectar({ codigo: r.datos.codigo, fisica, rank: true, yo });
+    red.codigo = r.datos.codigo;
+  } else if (modo === 'amigo') {
+    // sala por link con amigos: no cuenta para el ranking
+    pantalla = 'amigo';
     let codigo = params.get('sala');
     if (!codigo) {
       codigo = codigoNuevo();
-      const url = new URL(location.href); url.searchParams.set('sala', codigo);
-      history.replaceState(null, '', url);
+      const url = new URL(location.href); url.searchParams.set('sala', codigo); history.replaceState(null, '', url);
     }
-    red = conectar({ codigo, fisica });
+    red = conectar({ codigo, fisica, yo });
     red.codigo = codigo;
   } else {
-    revancha(estado);
-    bot = modo === 'bot' ? crearBot(1) : null;
+    pantalla = 'bot';
+    revancha(estado); if (fisica) estado.fisica = fisica;
+    bot = crearBot(1, 5);
   }
 }
 
 function volverAlMenu() {
   if (red) { red.cerrar(); red = null; }
+  cerrarTexto();
   const url = new URL(location.href); url.searchParams.delete('sala'); history.replaceState(null, '', url);
-  pantalla = 'menu'; pausa = false;
+  params.delete('sala');
+  pantalla = 'menu'; pausa = false; mostrarRespaldo = false;
 }
 
+async function verRanking() {
+  pantalla = 'ranking'; ranking = null; mostrarRespaldo = false;
+  const r = await api(`/ranking${yo ? `?yo=${encodeURIComponent(yo.id)}` : ''}`).catch(() => ({ ok: false }));
+  if (pantalla === 'ranking') ranking = r.ok ? r.datos : { error: true };
+}
+
+const online = () => pantalla === 'online' || pantalla === 'amigo';
+
 addEventListener('keydown', (e) => {
+  if (e.target && e.target.tagName === 'INPUT') { if (e.code === 'Escape') volverAlMenu(); return; }
   if (DE_JUEGO.has(e.code)) e.preventDefault();
   sonido.despertar();
   apretadas.add(e.code);
   if (e.repeat) return;
   if (e.code === 'KeyM') sonido.alternar();
   if (pantalla === 'menu') {
-    // un jugador por compu: 1 o Enter contra la máquina, 2 online
+    // 1 o Enter: contra la máquina · 2: online con Elo · 3: sala con amigos · 4: ranking
     if (e.code === 'Enter' || e.code === 'NumpadEnter' || e.code === 'Digit1') empezar('bot');
     else if (e.code === 'Digit2') empezar('online');
+    else if (e.code === 'Digit3') empezar('amigo');
+    else if (e.code === 'Digit4') verRanking();
     return;
   }
+  if (pantalla === 'ranking') { if (e.code === 'Escape' || e.code === 'Enter') volverAlMenu(); return; }
   const actual = vista();
   if (actual && actual.fase === 'fin' && (e.code === 'Enter' || e.code === 'NumpadEnter')) { revanchaAhora(); return; }
   if (e.code === 'Escape') {
-    if (pantalla === 'online') { volverAlMenu(); return; }   // online no se pausa: Esc sale
+    if (online()) { volverAlMenu(); return; }   // online no se pausa: Esc sale
     pausa = !pausa;
   }
   if (pausa && e.code === 'KeyR') { pausa = false; revancha(estado); pintor.limpiarMarcas(); }
@@ -82,29 +170,35 @@ addEventListener('keydown', (e) => {
 addEventListener('keyup', (e) => apretadas.delete(e.code));
 addEventListener('blur', () => apretadas.clear());
 
+// Otra: en la rankeada busca un partido nuevo; con amigos, revancha; contra la máquina, de nuevo.
 function revanchaAhora() {
   pintor.limpiarMarcas();
-  if (red) red.revancha(); else revancha(estado);
+  if (pantalla === 'online') empezar('online');
+  else if (red) red.revancha();
+  else revancha(estado);
 }
 
-// Toques y clics: botones del menú y de las pantallas dibujados en el canvas.
+// Toques y clics: botones dibujados en el canvas.
 canvas.addEventListener('pointerdown', (e) => {
   sonido.despertar();
   const id = pintor.botonEn(e.clientX, e.clientY);
   if (!id) return;
-  if (id === 'local' || id === 'bot' || id === 'online') empezar(id);
+  if (id === 'bot' || id === 'online' || id === 'amigo') empezar(id);
+  else if (id === 'ranking') verRanking();
   else if (id === 'menu') volverAlMenu();
   else if (id === 'otra') revanchaAhora();
-  else if (id === 'copiar') copiarLink();
+  else if (id === 'copiar') copiar(location.href, true);
+  else if (id === 'respaldo') mostrarRespaldo = !mostrarRespaldo;
+  else if (id === 'copiarRespaldo') copiar(codigoRespaldo(), false);
+  else if (id === 'restaurar') pedirRespaldo();
   else if (id === 'sonido') sonido.alternar();
   else if (id === 'pausa') pausa = !pausa;
 });
 
-async function copiarLink() {
-  const url = location.href;
+async function copiar(texto, compartir) {
   try {
-    if (navigator.share && tactil) await navigator.share({ url });
-    else { await navigator.clipboard.writeText(url); pintor.avisarCopiado(); }
+    if (compartir && navigator.share && tactil) await navigator.share({ url: texto });
+    else { await navigator.clipboard.writeText(texto); pintor.avisarCopiado(); }
   } catch { /* el usuario canceló */ }
 }
 
@@ -113,7 +207,7 @@ function leer(i) {
   for (const k in t) e[k] = t[k].some((c) => apretadas.has(c));
   return e;
 }
-// Contra el bot u online se maneja con cualquiera de las dos manos del teclado o con el táctil.
+// Se maneja con cualquiera de las dos manos del teclado o con el táctil.
 function leerPropio(auto) {
   const a = leer(0), b = leer(1), t = tactil ? tactil.leer(auto, pintor.anguloCamara ? pintor.anguloCamara() : 0) : {};
   const e = {};
@@ -123,14 +217,23 @@ function leerPropio(auto) {
 
 // La cámara sigue a tu auto: contra la máquina sos el azul; online, el lado que te tocó.
 function aQuienSigo() {
-  if (pantalla === 'bot' || pantalla === 'local') return 0;
-  if (pantalla === 'online' && red && red.lado >= 0) return red.lado;
+  if (pantalla === 'bot') return 0;
+  if (online() && red && red.lado >= 0) return red.lado;
   return -1;
 }
 
 function vista() {
-  if (pantalla === 'online') return red && red.estado;
+  if (online()) return red && red.estado;
   return estado;
+}
+
+function extras() {
+  return {
+    pantalla: pantalla === 'amigo' ? 'online' : pantalla, rankeada: pantalla === 'online', pausa, tactil: !!tactil, seguir: aQuienSigo(),
+    yo, ranking, mostrarRespaldo, respaldo: codigoRespaldo(),
+    red: red && { lado: red.lado, jugadores: red.jugadores, codigo: red.codigo, caido: red.caido, conectado: red.conectado, ping: red.ping,
+      listo: !!red.estado, nombres: red.nombres, elo: red.elo, rankeada: pantalla === 'online' },
+  };
 }
 
 // Paso fijo de 1/60 s, igual que el frameRate del SWF original.
@@ -140,36 +243,32 @@ function cuadro(ahora) {
   if (window.potrero && window.potrero.congelado) { antes = ahora; requestAnimationFrame(cuadro); return; }   // para pruebas
   acumulado += Math.min(250, ahora - antes); antes = ahora;
   while (acumulado >= DT) {
-    if (pantalla === 'local' && !pausa) {
-      paso(estado, [leer(0), leer(1)]);
-      sonido.eventos(estado);
-    } else if (pantalla === 'bot' && !pausa) {
+    if (pantalla === 'bot' && !pausa) {
       paso(estado, [leerPropio(estado.autos[0]), bot(estado)]);
       sonido.eventos(estado);
-    } else if (pantalla === 'online' && red) {
+    } else if (online() && red) {
       const lado = red.lado >= 0 ? red.lado : 0;
       const s = red.tic(leerPropio(red.estado && red.estado.autos[lado]));
       if (s) sonido.eventos(s);
+      if (red.sinIdentidad) { guardarYo(null); yo = null; pedirNombre(() => empezar('online')); }
     }
     acumulado -= DT;
   }
-  const s = pantalla === 'online' && red ? red.vista() : vista();
-  if (tactil) tactil.mostrar(pantalla !== 'menu' && !pausa);
-  sonido.motores(pantalla === 'menu' || pausa || !s ? null : s);
-  pintor.dibujar(s || estado, {
-    pantalla, pausa, tactil: !!tactil, seguir: aQuienSigo(),
-    red: red && { lado: red.lado, jugadores: red.jugadores, codigo: red.codigo, caido: red.caido, conectado: red.conectado, ping: red.ping, listo: !!red.estado },
-  });
+  const s = online() && red ? red.vista() : vista();
+  const jugando = pantalla === 'bot' || online();
+  if (tactil) tactil.mostrar(jugando && !pausa);
+  sonido.motores(!jugando || pausa || !s ? null : s);
+  pintor.dibujar(s || estado, extras());
   requestAnimationFrame(cuadro);
 }
 requestAnimationFrame(cuadro);
 
-// Si se entra con un link de sala, ir directo a la sala.
-if (params.get('sala')) empezar('online');
+// Si se entra con un link de sala, ir directo a esa sala (con amigos, sin Elo).
+if (params.get('sala')) empezar('amigo');
 
 // para pruebas automáticas desde la consola
 window.potrero = {
-  get estado() { return vista() || estado; }, get red() { return red; },
-  paso: (e) => paso(estado, e), empezar: (m = 'local') => empezar(m), menu: volverAlMenu,
-  dibujar: () => pintor.dibujar(vista() || estado, { pantalla, pausa, tactil: !!tactil, seguir: aQuienSigo(), red: red && { lado: red.lado, jugadores: red.jugadores, codigo: red.codigo, caido: red.caido, conectado: red.conectado, ping: red.ping, listo: !!red.estado } }),
+  get estado() { return vista() || estado; }, get red() { return red; }, get pantalla() { return pantalla; },
+  paso: (e) => paso(estado, e), empezar: (m = 'bot') => empezar(m), menu: volverAlMenu, ranking: verRanking,
+  dibujar: () => pintor.dibujar((online() && red ? red.vista() : vista()) || estado, extras()),
 };

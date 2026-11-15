@@ -43,8 +43,13 @@ const t0 = Date.now();
 for (let i = 0; i < 200 && rc.jugadores < 2; i++) await espera(100);
 ok(rc.jugadores === 2, `si nadie llega, entra una IA (a los ${((Date.now() - t0) / 1000).toFixed(1)} s): ${rc.nombres.filter(Boolean).join(' vs ')}`);
 for (let i = 0; i < 300 && !(rc.estado && rc.estado.fase === 'juego'); i++) { rc.tic({}); await espera(16); }
-for (let i = 0; i < 120; i++) { rc.tic({}); await espera(16); }
-const iaSeMueve = rc.estado.autos[1 - rc.lado].vel !== 0 || rc.estado.autos[1 - rc.lado].x !== 480;
+const ia0 = { ...rc.estado.autos[1 - rc.lado] };
+let iaSeMueve = false;
+for (let i = 0; i < 80 && !iaSeMueve; i++) {
+  rc.tic({}); await espera(50);
+  const o = rc.estado.autos[1 - rc.lado];
+  iaSeMueve = Math.hypot(o.x - ia0.x, o.y - ia0.y) > 20;
+}
 ok(iaSeMueve, 'la IA maneja');
 rc.cerrar();
 await espera(800);
