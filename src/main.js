@@ -160,7 +160,7 @@ requestAnimationFrame(cuadro);
 if (params.get('sala')) empezar('online');
 
 // para pruebas automáticas desde la consola
-window.autobol = {
+window.potrero = {
   get estado() { return vista() || estado; }, get red() { return red; },
   paso: (e) => paso(estado, e), empezar: (m = 'local') => empezar(m), menu: volverAlMenu,
   dibujar: () => pintor.dibujar(vista() || estado, { pantalla, pausa, tactil: !!tactil, red: red && { lado: red.lado, jugadores: red.jugadores, codigo: red.codigo, caido: red.caido, conectado: red.conectado, ping: red.ping, listo: !!red.estado } }),

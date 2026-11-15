@@ -1,8 +1,8 @@
-# Autobol
+# Potrero 404
 
 Fútbol con autos visto desde arriba, para dos jugadores. Es el parcial de Programación II de 2016 (en Flash, ActionScript 3, con el nombre "Antiguo Ball"), revivido en JavaScript para que se juegue en el navegador.
 
-Nombre de trabajo: se puede cambiar.
+Antes se llamó "Antiguo Ball" (2016) y "Autobol" (nombre de trabajo de 2026).
 
 ## Jugar
 

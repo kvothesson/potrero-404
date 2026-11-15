@@ -51,4 +51,4 @@ wss.on('connection', (ws, req) => {
   });
 });
 
-http.listen(PUERTO, '127.0.0.1', () => console.log(`Autobol en http://127.0.0.1:${PUERTO}${LAG ? ` (lag simulado ${LAG} ms)` : ''}`));
+http.listen(PUERTO, '127.0.0.1', () => console.log(`Potrero 404 en http://127.0.0.1:${PUERTO}${LAG ? ` (lag simulado ${LAG} ms)` : ''}`));

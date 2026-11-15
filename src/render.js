@@ -216,7 +216,7 @@ export function crearPintor(canvas) {
   function portada() {
     ctx.fillStyle = 'rgba(5,10,8,.78)'; ctx.fillRect(0, 0, W, H);
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.font = '800 58px system-ui, sans-serif'; ctx.fillStyle = '#fff'; ctx.fillText('AUTOBOL', W / 2, 170);
+    ctx.font = '800 58px system-ui, sans-serif'; ctx.fillStyle = '#fff'; ctx.fillText('POTRERO 404', W / 2, 170);
     ctx.font = '600 15px system-ui, sans-serif'; ctx.fillStyle = 'rgba(255,255,255,.6)';
     ctx.fillText('Programación II · 2016, revivido en 2026', W / 2, 212);
     const fila = (y, col, titulo, lineas) => {

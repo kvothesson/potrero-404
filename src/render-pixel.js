@@ -550,8 +550,15 @@ export function crearPintor(canvas, opciones = {}) {
 
   function portada(s, extra) {
     b.fillStyle = 'rgba(20,15,34,.84)'; b.fillRect(0, 0, BW, BH);
-    texto(b, 'AUTOBOL', BW / 2 + 2, 26, { esc: 6, alinear: 'centro', color: '#ffb030', sombra: '#7a2a10' });
-    texto(b, 'AUTOBOL', BW / 2, 24, { esc: 6, alinear: 'centro', color: '#fff4b0', sombra: null });
+    // título: POTRERO 404, con el 404 que cada tanto se corre como un píxel muerto
+    texto(b, 'POTRERO 404', BW / 2 + 2, 30, { esc: 4, alinear: 'centro', color: '#ffb030', sombra: '#7a2a10' });
+    texto(b, 'POTRERO 404', BW / 2, 28, { esc: 4, alinear: 'centro', color: '#fff4b0', sombra: null });
+    const x404 = BW / 2 - (11 * 24 - 4) / 2 + 8 * 24;
+    if ((s.cuadro % 150) < 10) {
+      texto(b, '404', x404 - 3, 28, { esc: 4, color: 'rgba(255,40,90,.85)', sombra: null });
+      texto(b, '404', x404 + 3, 29, { esc: 4, color: 'rgba(40,220,255,.85)', sombra: null });
+      texto(b, '404', x404, 28, { esc: 4, color: '#fff4b0', sombra: null });
+    }
     texto(b, '2016 → 2026', BW / 2, 74, { alinear: 'centro', color: '#9890c0' });
 
     if (!extra.tactil) {

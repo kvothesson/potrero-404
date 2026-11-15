@@ -8,7 +8,7 @@ import { paso, aBits, deBits } from './sim.js';
 export function urlServidor() {
   const forzado = new URLSearchParams(location.search).get('servidor');
   if (forzado) return forzado;
-  if (globalThis.AUTOBOL_SERVIDOR) return globalThis.AUTOBOL_SERVIDOR;
+  if (globalThis.POTRERO_SERVIDOR) return globalThis.POTRERO_SERVIDOR;
   return `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`;
 }
 
