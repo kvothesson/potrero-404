@@ -8,6 +8,9 @@ const canvas = document.getElementById('juego');
 const pintor = (new URLSearchParams(location.search).has('liso') ? pintorLiso : pintorPixel)(canvas);
 const sonido = crearSonido();
 let estado = nuevoEstado();
+// Opción oculta: ?fisica=2016 usa la fórmula de rebote original de la pelota (Ball.as).
+// Sin parámetro se juega con la física 2026. revancha() conserva este valor.
+if (new URLSearchParams(location.search).get('fisica') === '2016') estado.fisica = '2016';
 let portada = true, pausa = false;
 
 // Teclas por jugador, con las del original y alternativas cómodas.

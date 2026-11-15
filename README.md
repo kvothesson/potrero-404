@@ -40,6 +40,11 @@ Se sacó del fuente de la versión 09 (`Antiguo Ball/09-CarPruebas/src`, mayo de
 - **Derrape y nitro que se notan:** el freno de mano ahora hace patinar el auto de cola (velocidad lateral con poco agarre) y deja marcas y humo. El nitro se gasta 0,7 por cuadro en vez de 2 y arranca en 40: la barra llena dura unos 2,4 s en vez de 0,8.
 - **Cancha:** tiene esquinas en ochava.
 
+## Opciones ocultas
+
+- `?fisica=2016`: la pelota usa la fórmula original de Ball.as (ángulo + velocidad, rebote `360 − ángulo + 2 × ángulo de la pared`). Sin el parámetro se juega con la física 2026. Comparación en `docs/pelota-2016-vs-2026.gif`.
+- `?liso`: el dibujo vectorial anterior en vez del pixel art.
+
 ## Estructura
 
 | Archivo | Qué hace |
