@@ -129,12 +129,12 @@ export function crearPintor(canvas) {
   function pelota(b) {
     ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.ellipse(b.x + 3, b.y + 4, 10, 8, 0, 0, Math.PI * 2); ctx.fill();
     ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.giro);
-    ctx.fillStyle = '#fafafa'; ctx.beginPath(); ctx.arc(0, 0, 10, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fafafa'; ctx.beginPath(); ctx.arc(0, 0, 11, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#1b1b1b';
     ctx.beginPath(); ctx.arc(0, 0, 3.6, 0, Math.PI * 2); ctx.fill();
     for (let k = 0; k < 5; k++) { const a = k * Math.PI * 2 / 5; ctx.beginPath(); ctx.arc(Math.cos(a) * 8, Math.sin(a) * 8, 2.6, 0, Math.PI * 2); ctx.fill(); }
     ctx.restore();
-    ctx.strokeStyle = 'rgba(0,0,0,.4)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(b.x, b.y, 10, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = 'rgba(0,0,0,.4)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(b.x, b.y, 11, 0, Math.PI * 2); ctx.stroke();
   }
 
   function hud(s) {

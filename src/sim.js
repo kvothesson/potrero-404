@@ -1,30 +1,36 @@
 // Simulación pura del juego: sin DOM, para poder correrla igual en el
 // navegador y, más adelante, en el servidor de partidas online.
 // Unidades: píxeles y cuadros a 60 por segundo, como el original de 2016.
+//
+// Física "a lo Rocket League" (2026-11-15): autos y pelota tienen velocidad como vector y
+// los choques se resuelven con impulsos. La pelota sale según dónde y qué tan fuerte la
+// pegás, no copiando la dirección del auto como en el original.
 
 export const W = 480, H = 720, FPS = 60;
 export const CAMPO = { L: 20, R: 460, T: 50, B: 670, ochava: 40, arcoAncho: 150, arcoFondo: 34 };
 export const GOLES_PARA_GANAR = 3;
 
-// Basados en el original (Cars/CarFerrariBlue.as y Cars/CarAcuraRed.as), pero suavizados:
-// allá aceleraba a fondo en 4 cuadros y giraba 6-7 grados por cuadro, imposible de controlar.
-// Se mantiene la diferencia: el azul dobla mejor y el rojo corre más.
+// Se mantiene la diferencia del original: el azul dobla mejor y el rojo corre más.
 export const AUTOS = [
-  { nombre: 'Azul', color: '#2f7cf6', acel: 0.16, frenada: 0.35, roce: 0.06, velMax: 5, velNitro: 8.5, giro: 3.6, potenciaFreno: 1.6,
+  { nombre: 'Azul', color: '#2f7cf6', acel: 0.24, frenada: 0.4, roce: 0.05, velMax: 5.4, velNitro: 9, giro: 4.3, potenciaFreno: 1.5,
     spawn: { x: 240, y: 200, rot: 90 } },
-  { nombre: 'Rojo', color: '#e5383b', acel: 0.18, frenada: 0.35, roce: 0.06, velMax: 5.6, velNitro: 9.5, giro: 3.2, potenciaFreno: 1.5,
+  { nombre: 'Rojo', color: '#e5383b', acel: 0.26, frenada: 0.4, roce: 0.05, velMax: 5.9, velNitro: 9.8, giro: 3.9, potenciaFreno: 1.5,
     spawn: { x: 240, y: 520, rot: 270 } },
 ];
 
 const LARGO = 44, ANCHO = 22;          // tamaño del auto
 const R_RUEDA = 11;                    // círculos de choque del auto (frente y cola)
-const R_PELOTA = 10;
-const ROCE_PELOTA = 0.01;              // speedReduction de Ball.as
-const EMPUJE_EXTRA = 3;                // forceAdd de Ball.as
-// En el original el nitro se gastaba 2 por cuadro: 30 duraban un cuarto de segundo y no se notaba.
-const NITRO_MAX = 100, NITRO_INICIAL = 40, NITRO_GASTO = 0.7;  // ahora la barra llena dura unos 2,4 s
-const AGARRE = 0.72, AGARRE_DERRAPE = 0.965;                    // cuánto patina de costado por cuadro
-const FRENO_FRENADA = 0.9;             // speedReduction de Car.as era 0.8: frenaba de golpe
+const R_PELOTA = 11;
+const MASA_AUTO = 3, MASA_PELOTA = 1;
+const REBOTE_PELOTA_AUTO = 0.5;        // cuánto rebota la pelota contra el auto
+const GOLPE_EXTRA = 0.45;              // empujón extra al pegarle, como el de Rocket League
+const REBOTE_PELOTA_PARED = 0.78;
+const REBOTE_AUTO_PARED = 0.15;        // el auto casi no rebota: se desliza por la pared
+const REBOTE_AUTOS = 0.45;
+const ROCE_PELOTA = 0.008, AIRE_PELOTA = 0.003;
+const VEL_MAX_PELOTA = 14;
+const NITRO_MAX = 100, NITRO_INICIAL = 40, NITRO_GASTO = 0.7;  // la barra llena dura unos 2,4 s
+const AGARRE = 0.55;                   // cuánto de la velocidad de costado sobrevive por cuadro
 const CUENTA = 3 * FPS;                // timeRespawn de Main.as
 const FESTEJO = 1.2 * FPS;
 const NITRO_RESPAWN = 5 * FPS;         // timeRespawn de Nitro.as
@@ -50,14 +56,14 @@ function pastillas() {
     [W / 2 - k, H - k * 3], [W / 2 + k, H - k * 3]];
   return [
     ...grandes.map(([x, y]) => ({ x, y, r: 14, poder: 100, activa: true, espera: 0 })),
-    ...chicas.map(([x, y]) => ({ x, y, r: 7, poder: 10, activa: true, espera: 0 })),
+    ...chicas.map(([x, y]) => ({ x, y, r: 7, poder: 12, activa: true, espera: 0 })),
   ];
 }
 
 export function nuevoEstado() {
   const s = {
     autos: AUTOS.map((a, i) => ({
-      i, x: 0, y: 0, rot: 0, vel: 0, nitro: NITRO_INICIAL, giro: a.giro, frenoActivo: false, nitroActivo: false, goles: 0,
+      i, x: 0, y: 0, rot: 0, vx: 0, vy: 0, vel: 0, lat: 0, nitro: NITRO_INICIAL, frenoActivo: false, nitroActivo: false, goles: 0,
     })),
     pelota: { x: W / 2, y: H / 2, vx: 0, vy: 0, giro: 0 },
     pastillas: pastillas(),
@@ -71,7 +77,7 @@ export function nuevoEstado() {
 function reubicar(s) {
   s.autos.forEach((c, i) => {
     const sp = AUTOS[i].spawn;
-    c.x = sp.x; c.y = sp.y; c.rot = sp.rot; c.vel = 0; c.lat = 0; c.volante = 0; c.giro = AUTOS[i].giro; c.frenoActivo = false; c.nitroActivo = false;
+    Object.assign(c, { x: sp.x, y: sp.y, rot: sp.rot, vx: 0, vy: 0, vel: 0, lat: 0, frenoActivo: false, nitroActivo: false });
   });
   Object.assign(s.pelota, { x: W / 2, y: H / 2, vx: 0, vy: 0 });
 }
@@ -109,55 +115,64 @@ export function paso(s, entradas) {
   s.autos.forEach((c) => juntarNitro(s, c));
   s.autos.forEach((c) => pegarPelota(s, c));
   moverPelota(s);
+  s.autos.forEach(medir);
   revisarGol(s);
   s.pastillas.forEach((p) => { if (!p.activa && --p.espera <= 0) { p.activa = true; s.eventos.push({ t: 'nitroVuelve' }); } });
   return s;
 }
 
-// Port de Car.as: move(), handlingSpeed() y nitroSpeed().
+// vel y lat: velocidad hacia adelante y de costado, para el dibujo, el sonido y los bots.
+function medir(c) {
+  const co = Math.cos(rad(c.rot)), si = Math.sin(rad(c.rot));
+  c.vel = c.vx * co + c.vy * si;
+  c.lat = -c.vx * si + c.vy * co;
+}
+
 function manejar(s, c, a, e) {
-  // Nitro: se gasta 2 por cuadro mientras se aprieta.
   if (e.nitro && c.nitro > 0) c.nitro = Math.max(0, c.nitro - NITRO_GASTO);
   c.nitroActivo = e.nitro && c.nitro > 0;
+  if (e.freno && !c.frenoActivo) s.eventos.push({ t: 'derrape', quien: c.i });
+  c.frenoActivo = e.freno;
 
-  // Freno de mano: gira más y pierde velocidad al apretarlo.
-  if (e.freno && !c.frenoActivo) {
-    c.giro = a.giro * a.potenciaFreno; c.frenoActivo = true;
-    if (!e.nitro) c.vel *= FRENO_FRENADA;
-    s.eventos.push({ t: 'derrape', quien: c.i });
-  } else if (!e.freno) { c.giro = a.giro; c.frenoActivo = false; }
+  let co = Math.cos(rad(c.rot)), si = Math.sin(rad(c.rot));
+  let f = c.vx * co + c.vy * si;       // hacia adelante
+  let l = -c.vx * si + c.vy * co;      // de costado
 
+  // Motor y freno, sobre la velocidad hacia adelante.
   const tope = c.nitroActivo ? a.velNitro : a.velMax;
   const reversa = a.velMax * 0.6;
-  if (e.up) {
-    if (c.vel < 0) c.vel = Math.min(0, c.vel + a.frenada);           // venía marcha atrás: frena primero
-    else if (c.vel < tope) c.vel = Math.min(tope, c.vel + a.acel * (c.nitroActivo ? 2 : 1));
-    else c.vel = Math.max(tope, c.vel - a.roce * 2);                 // se terminó el nitro: baja de a poco
+  if (c.nitroActivo) {
+    f = Math.min(tope, f + a.acel * 2.2);                           // el nitro empuja aunque no aceleres
+  } else if (e.up) {
+    if (f < 0) f = Math.min(0, f + a.frenada);
+    else if (f < tope) f = Math.min(tope, f + a.acel * (1 - 0.5 * f / tope)); // tira más fuerte desde parado
+    else f = Math.max(tope, f - a.roce * 3);
   } else if (e.down) {
-    if (c.vel > 0) c.vel = Math.max(0, c.vel - a.frenada);           // freno
-    else c.vel = Math.max(-reversa, c.vel - a.acel * 0.7);           // marcha atrás, más lenta
-  } else if (c.vel !== 0) {
-    c.vel -= Math.sign(c.vel) * Math.min(Math.abs(c.vel), a.roce);   // rueda libre
+    if (f > 0) f = Math.max(0, f - a.frenada);
+    else f = Math.max(-reversa, f - a.acel * 0.7);
+  } else {
+    f -= Math.sign(f) * Math.min(Math.abs(f), a.roce);
   }
-  // Giro: dobla aunque no acelere, más suave a poca velocidad, y al revés en marcha atrás,
-  // como un auto de verdad. El volante tiene un poco de inercia para que no sea nervioso.
-  const quiere = (e.right ? 1 : 0) - (e.left ? 1 : 0);
-  const agarre = Math.min(1, Math.abs(c.vel) / 2.2);
-  const objetivo = quiere * c.giro * agarre * Math.sign(c.vel || 1);
-  c.volante = (c.volante || 0) + (objetivo - (c.volante || 0)) * 0.35;
 
-  // Derrape: el auto tiene velocidad hacia adelante (vel) y de costado (lat). Al girar, la
-  // velocidad que traía se reparte entre las dos. Con agarre normal lo de costado se pierde
-  // rápido; con el freno de mano casi no se pierde y el auto patina de cola.
-  const vx = Math.cos(rad(c.rot)) * c.vel - Math.sin(rad(c.rot)) * (c.lat || 0);
-  const vy = Math.sin(rad(c.rot)) * c.vel + Math.cos(rad(c.rot)) * (c.lat || 0);
-  c.rot = (((c.rot + c.volante) % 360) + 360) % 360;
-  const co = Math.cos(rad(c.rot)), si = Math.sin(rad(c.rot));
-  c.vel = vx * co + vy * si;
-  c.lat = (-vx * si + vy * co) * (c.frenoActivo ? AGARRE_DERRAPE : AGARRE);
-  if (c.frenoActivo) c.vel *= 0.99;
-  c.x += co * c.vel - si * c.lat;
-  c.y += si * c.vel + co * c.lat;
+  // Giro: radio chico a poca velocidad y más abierto a fondo, como en Rocket League.
+  // Dobla aunque no aceleres y en marcha atrás dobla al revés, como un auto.
+  const quiere = (e.right ? 1 : 0) - (e.left ? 1 : 0);
+  const agarre = Math.min(1, Math.abs(f) / 0.9);
+  const abre = 1 - 0.3 * Math.min(1, Math.abs(f) / a.velNitro);
+  const giro = a.giro * agarre * abre * (c.frenoActivo ? a.potenciaFreno : 1) * Math.sign(f || 1) * quiere;
+  c.rot = (((c.rot + giro) % 360) + 360) % 360;
+
+  if (c.frenoActivo) {
+    // Derrape: el auto gira pero la velocidad sigue para donde iba; casi no pierde nada.
+    const vx = co * f - si * l, vy = si * f + co * l;
+    c.vx = vx * 0.992; c.vy = vy * 0.992;
+  } else {
+    // Agarre: la velocidad acompaña al auto y lo de costado se pierde rápido.
+    co = Math.cos(rad(c.rot)); si = Math.sin(rad(c.rot));
+    const nl = l * AGARRE;
+    c.vx = co * f - si * nl; c.vy = si * f + co * nl;
+  }
+  c.x += c.vx; c.y += c.vy;
 }
 
 function circulosAuto(c) {
@@ -181,19 +196,17 @@ function empujarFuera(o, r) {
   return peor;
 }
 
+// Contra la pared el auto pierde lo que iba hacia la pared y se desliza por ella.
 function chocarPared(s, c) {
   for (const k of circulosAuto(c)) {
     const q = { x: k.x, y: k.y };
     const n = empujarFuera(q, R_RUEDA);
     if (!n) continue;
     c.x += q.x - k.x; c.y += q.y - k.y;
-    c.lat = (c.lat || 0) * 0.4;
-    // Contra la pared rebota un poco en vez de clavarse; de costado solo roza.
-    const haciaPared = (k.frente && c.vel > 0) || (!k.frente && c.vel < 0);
-    if (haciaPared) {
-      const frontal = Math.abs(Math.cos(rad(c.rot)) * n.nx + Math.sin(rad(c.rot)) * n.ny);
-      if (Math.abs(c.vel) > 3 && frontal > 0.5) s.eventos.push({ t: 'choque', quien: c.i, fuerza: Math.abs(c.vel) });
-      c.vel = frontal > 0.7 ? -c.vel * 0.25 : c.vel * (1 - frontal * 0.5);
+    const vn = c.vx * n.nx + c.vy * n.ny;
+    if (vn < 0) {
+      c.vx -= (1 + REBOTE_AUTO_PARED) * vn * n.nx; c.vy -= (1 + REBOTE_AUTO_PARED) * vn * n.ny;
+      if (-vn > 3) s.eventos.push({ t: 'choque', quien: c.i, fuerza: -vn });
     }
   }
 }
@@ -205,10 +218,12 @@ function chocarAutos(s) {
     if (d >= min || d < 1e-6) continue;
     const nx = dx / d, ny = dy / d, pen = (min - d) / 2;
     a.x -= nx * pen; a.y -= ny * pen; b.x += nx * pen; b.y += ny * pen;
-    const fuerza = Math.abs(a.vel) + Math.abs(b.vel);
-    if (ka.frente && a.vel > 0) a.vel *= 0.3;
-    if (kb.frente && b.vel > 0) b.vel *= 0.3;
-    if (fuerza > 4 && s.cuadro % 8 === 0) s.eventos.push({ t: 'choqueAutos', fuerza });
+    const vr = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
+    if (vr < 0) {
+      const j = -(1 + REBOTE_AUTOS) * vr / 2;
+      a.vx -= j * nx; a.vy -= j * ny; b.vx += j * nx; b.vy += j * ny;
+      if (-vr > 3) s.eventos.push({ t: 'choqueAutos', fuerza: -vr });
+    }
   }
 }
 
@@ -223,8 +238,9 @@ function juntarNitro(s, c) {
   }
 }
 
-// Port de Ball.collisionCar(): el frente del auto le da la dirección del auto y su velocidad,
-// la cola la tira para atrás y los costados la hacen rebotar.
+// Pelota contra auto (rectángulo rotado): choque con impulso según la velocidad relativa,
+// más un empujón extra en la dirección del golpe. Pegarle con la punta, de costado o
+// de refilón la manda para lugares distintos.
 function pegarPelota(s, c) {
   const b = s.pelota, co = Math.cos(rad(c.rot)), si = Math.sin(rad(c.rot));
   const rx = b.x - c.x, ry = b.y - c.y;
@@ -234,39 +250,37 @@ function pegarPelota(s, c) {
   let dx = lx - qx, dy = ly - qy, d = Math.hypot(dx, dy);
   if (d >= R_PELOTA) return;
   let nlx, nly;
-  if (d < 1e-6) { // el centro quedó adentro del auto: sacarla por la cara más cercana
+  if (d < 1e-6) {
     const fx = hx - Math.abs(lx), fy = hy - Math.abs(ly);
     if (fx < fy) { nlx = Math.sign(lx) || 1; nly = 0; d = -fx; } else { nlx = 0; nly = Math.sign(ly) || 1; d = -fy; }
   } else { nlx = dx / d; nly = dy / d; }
-  const pen = R_PELOTA - d;
   const nx = nlx * co - nly * si, ny = nlx * si + nly * co;
-  b.x += nx * pen; b.y += ny * pen;
+  // separar según las masas
+  const pen = R_PELOTA - d, tot = MASA_AUTO + MASA_PELOTA;
+  b.x += nx * pen * MASA_AUTO / tot; b.y += ny * pen * MASA_AUTO / tot;
+  c.x -= nx * pen * MASA_PELOTA / tot; c.y -= ny * pen * MASA_PELOTA / tot;
 
-  const velPelota = Math.hypot(b.vx, b.vy);
-  const cara = Math.abs(nlx) > Math.abs(nly) ? (nlx > 0 ? 'frente' : 'cola') : 'costado';
-  if (cara === 'frente' && c.vel > 0.5) {
-    const v = Math.max(velPelota, c.vel + EMPUJE_EXTRA);
-    b.vx = co * v; b.vy = si * v;
-  } else if (cara === 'cola' && c.vel < -0.5) {
-    const v = Math.max(velPelota, -c.vel + EMPUJE_EXTRA);
-    b.vx = -co * v; b.vy = -si * v;
-  } else {
-    const vn = b.vx * nx + b.vy * ny;
-    if (vn < 0) { b.vx -= 2 * vn * nx; b.vy -= 2 * vn * ny; }
-    // si el auto viene empujando de costado, que la pelota salga al menos a esa velocidad
-    const autoN = (co * nx + si * ny) * c.vel;
-    const ahora = b.vx * nx + b.vy * ny;
-    if (ahora < autoN + 1) { b.vx += (autoN + 1 - ahora) * nx; b.vy += (autoN + 1 - ahora) * ny; }
-  }
+  const vr = (b.vx - c.vx) * nx + (b.vy - c.vy) * ny;
+  if (vr >= 0) return;
+  const j = -(1 + REBOTE_PELOTA_AUTO) * vr / (1 / MASA_PELOTA + 1 / MASA_AUTO);
+  const extra = Math.min(-vr, 10) * GOLPE_EXTRA;
+  b.vx += (j / MASA_PELOTA + extra) * nx; b.vy += (j / MASA_PELOTA + extra) * ny;
+  c.vx -= (j / MASA_AUTO) * nx; c.vy -= (j / MASA_AUTO) * ny;
+  limitarPelota(b);
   if (s.cuadro - (c.ultimoToque || -99) > 6) s.eventos.push({ t: 'toque', quien: c.i, fuerza: Math.hypot(b.vx, b.vy) });
   c.ultimoToque = s.cuadro;
+}
+
+function limitarPelota(b) {
+  const v = Math.hypot(b.vx, b.vy);
+  if (v > VEL_MAX_PELOTA) { b.vx *= VEL_MAX_PELOTA / v; b.vy *= VEL_MAX_PELOTA / v; }
 }
 
 function moverPelota(s) {
   const b = s.pelota;
   const v = Math.hypot(b.vx, b.vy);
   if (v > 0) {
-    const nv = Math.max(0, v - ROCE_PELOTA);
+    const nv = Math.max(0, v - ROCE_PELOTA - v * AIRE_PELOTA);
     b.vx *= nv / v; b.vy *= nv / v;
   }
   b.x += b.vx; b.y += b.vy;
@@ -275,7 +289,7 @@ function moverPelota(s) {
   if (n) {
     const vn = b.vx * n.nx + b.vy * n.ny;
     if (vn < 0) {
-      b.vx -= 2 * vn * n.nx; b.vy -= 2 * vn * n.ny;
+      b.vx -= (1 + REBOTE_PELOTA_PARED) * vn * n.nx; b.vy -= (1 + REBOTE_PELOTA_PARED) * vn * n.ny;
       if (-vn > 1.5) s.eventos.push({ t: 'pared', fuerza: -vn });
     }
   }
@@ -294,6 +308,5 @@ function revisarGol(s) {
   s.fase = 'gol'; s.reloj = FESTEJO;
   if (c.goles >= GOLES_PARA_GANAR) s.ganador = anota;
   s.eventos.push({ t: 'gol', quien: anota });
-  // la pelota frena adentro de la red
   b.vx *= 0.3; b.vy *= 0.3;
 }
