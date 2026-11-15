@@ -19,8 +19,8 @@ Esc pausa, R reinicia desde la pausa y M apaga el sonido. Gana el primero en hac
 
 Se sacó del fuente de la versión 09 (`Antiguo Ball/09-CarPruebas/src`, mayo de 2016):
 
-- **Autos:** los valores de cada uno (aceleración, velocidad máxima, velocidad con nitro, giro y potencia del freno de mano).
-- **Manejo:** el auto solo dobla si acelera o va marcha atrás, y el freno de mano gira más y frena un 20 %.
+- **Autos:** el azul dobla mejor y el rojo corre más, con las mismas velocidades máximas (5 y 6).
+- **Manejo:** el freno de mano gira más y le saca velocidad.
 - **Nitro:** arranca en 30, el tope es 100 y se gasta 2 por cuadro.
 - **Pastillas de nitro:** 4 grandes que dan 100, 6 chicas que dan 10, y vuelven a los 5 segundos.
 - **Pelota:** frena 0,01 por cuadro. El frente del auto la saca en su dirección, la cola la tira para atrás y los costados la hacen rebotar.
@@ -31,7 +31,7 @@ Se sacó del fuente de la versión 09 (`Antiguo Ball/09-CarPruebas/src`, mayo de
 
 - **Arte y sonido:** los sprites y los sonidos del original están en el .fla y no se bajaron. Los autos, la cancha y los efectos se dibujan con código, y los sonidos se sintetizan.
 - **Choques:** son por geometría (círculos y rectángulo rotado) en vez de `hitTestObject`. Ya no se traba nada contra las paredes.
-- **Velocidad:** se recorta al tope en vez de oscilar alrededor.
+- **Manejo suavizado** (2026-11-15, porque era muy difícil de controlar): acelera a fondo en medio segundo en vez de 4 cuadros, gira unos 210 grados por segundo en vez de 400, dobla aunque no acelere, en marcha atrás dobla como un auto real, el volante tiene un poco de inercia, el nitro llega a 8,5–9,5 en vez de 13–14 y contra la pared rebota en vez de clavarse.
 - **Cancha:** tiene esquinas en ochava.
 
 ## Estructura

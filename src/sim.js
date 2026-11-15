@@ -6,11 +6,13 @@ export const W = 480, H = 720, FPS = 60;
 export const CAMPO = { L: 20, R: 460, T: 50, B: 670, ochava: 40, arcoAncho: 150, arcoFondo: 34 };
 export const GOLES_PARA_GANAR = 3;
 
-// Valores del código original (Cars/CarFerrariBlue.as y Cars/CarAcuraRed.as).
+// Basados en el original (Cars/CarFerrariBlue.as y Cars/CarAcuraRed.as), pero suavizados:
+// allá aceleraba a fondo en 4 cuadros y giraba 6-7 grados por cuadro, imposible de controlar.
+// Se mantiene la diferencia: el azul dobla mejor y el rojo corre más.
 export const AUTOS = [
-  { nombre: 'Azul', color: '#2f7cf6', acel: 1.5, desacel: 0.3, velMax: 5, velNitro: 13, giro: 7, potenciaFreno: 1.6,
+  { nombre: 'Azul', color: '#2f7cf6', acel: 0.16, frenada: 0.35, roce: 0.06, velMax: 5, velNitro: 8.5, giro: 3.6, potenciaFreno: 1.6,
     spawn: { x: 240, y: 200, rot: 90 } },
-  { nombre: 'Rojo', color: '#e5383b', acel: 1.5, desacel: 0.3, velMax: 6, velNitro: 14, giro: 6, potenciaFreno: 1.5,
+  { nombre: 'Rojo', color: '#e5383b', acel: 0.18, frenada: 0.35, roce: 0.06, velMax: 5.6, velNitro: 9.5, giro: 3.2, potenciaFreno: 1.5,
     spawn: { x: 240, y: 520, rot: 270 } },
 ];
 
@@ -20,7 +22,7 @@ const R_PELOTA = 10;
 const ROCE_PELOTA = 0.01;              // speedReduction de Ball.as
 const EMPUJE_EXTRA = 3;                // forceAdd de Ball.as
 const NITRO_MAX = 100, NITRO_INICIAL = 30, NITRO_GASTO = 2;
-const FRENO_FRENADA = 0.8;             // speedReduction de Car.as
+const FRENO_FRENADA = 0.9;             // speedReduction de Car.as era 0.8: frenaba de golpe
 const CUENTA = 3 * FPS;                // timeRespawn de Main.as
 const FESTEJO = 1.2 * FPS;
 const NITRO_RESPAWN = 5 * FPS;         // timeRespawn de Nitro.as
@@ -67,7 +69,7 @@ export function nuevoEstado() {
 function reubicar(s) {
   s.autos.forEach((c, i) => {
     const sp = AUTOS[i].spawn;
-    c.x = sp.x; c.y = sp.y; c.rot = sp.rot; c.vel = 0; c.giro = AUTOS[i].giro; c.frenoActivo = false; c.nitroActivo = false;
+    c.x = sp.x; c.y = sp.y; c.rot = sp.rot; c.vel = 0; c.volante = 0; c.giro = AUTOS[i].giro; c.frenoActivo = false; c.nitroActivo = false;
   });
   Object.assign(s.pelota, { x: W / 2, y: H / 2, vx: 0, vy: 0 });
 }
@@ -124,21 +126,24 @@ function manejar(s, c, a, e) {
   } else if (!e.freno) { c.giro = a.giro; c.frenoActivo = false; }
 
   const tope = c.nitroActivo ? a.velNitro : a.velMax;
+  const reversa = a.velMax * 0.6;
   if (e.up) {
-    if (c.vel < tope) c.vel = Math.min(tope, c.vel + a.acel);
-    else c.vel = Math.max(tope, c.vel - a.desacel);
+    if (c.vel < 0) c.vel = Math.min(0, c.vel + a.frenada);           // venía marcha atrás: frena primero
+    else if (c.vel < tope) c.vel = Math.min(tope, c.vel + a.acel * (c.nitroActivo ? 2 : 1));
+    else c.vel = Math.max(tope, c.vel - a.roce * 2);                 // se terminó el nitro: baja de a poco
   } else if (e.down) {
-    if (c.vel > -tope) c.vel = Math.max(-tope, c.vel - a.acel);
+    if (c.vel > 0) c.vel = Math.max(0, c.vel - a.frenada);           // freno
+    else c.vel = Math.max(-reversa, c.vel - a.acel * 0.7);           // marcha atrás, más lenta
   } else if (c.vel !== 0) {
-    if (Math.abs(c.vel) < 1) c.vel = 0;
-    else c.vel -= Math.sign(c.vel) * a.desacel;
+    c.vel -= Math.sign(c.vel) * Math.min(Math.abs(c.vel), a.roce);   // rueda libre
   }
-  // Como en el original, solo dobla si está acelerando o yendo marcha atrás.
-  if (e.up || e.down) {
-    if (e.right) c.rot += c.giro;
-    if (e.left) c.rot -= c.giro;
-    c.rot = ((c.rot % 360) + 360) % 360;
-  }
+  // Giro: dobla aunque no acelere, más suave a poca velocidad, y al revés en marcha atrás,
+  // como un auto de verdad. El volante tiene un poco de inercia para que no sea nervioso.
+  const quiere = (e.right ? 1 : 0) - (e.left ? 1 : 0);
+  const agarre = Math.min(1, Math.abs(c.vel) / 2.2);
+  const objetivo = quiere * c.giro * agarre * Math.sign(c.vel || 1);
+  c.volante = (c.volante || 0) + (objetivo - (c.volante || 0)) * 0.35;
+  c.rot = (((c.rot + c.volante) % 360) + 360) % 360;
   c.x += Math.cos(rad(c.rot)) * c.vel;
   c.y += Math.sin(rad(c.rot)) * c.vel;
 }
@@ -170,11 +175,12 @@ function chocarPared(s, c) {
     const n = empujarFuera(q, R_RUEDA);
     if (!n) continue;
     c.x += q.x - k.x; c.y += q.y - k.y;
-    // Como el original: si el frente toca la pared, el auto se frena.
+    // Contra la pared rebota un poco en vez de clavarse; de costado solo roza.
     const haciaPared = (k.frente && c.vel > 0) || (!k.frente && c.vel < 0);
     if (haciaPared) {
-      if (Math.abs(c.vel) > 3) s.eventos.push({ t: 'choque', quien: c.i, fuerza: Math.abs(c.vel) });
-      c.vel = 0;
+      const frontal = Math.abs(Math.cos(rad(c.rot)) * n.nx + Math.sin(rad(c.rot)) * n.ny);
+      if (Math.abs(c.vel) > 3 && frontal > 0.5) s.eventos.push({ t: 'choque', quien: c.i, fuerza: Math.abs(c.vel) });
+      c.vel = frontal > 0.7 ? -c.vel * 0.25 : c.vel * (1 - frontal * 0.5);
     }
   }
 }
