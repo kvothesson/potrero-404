@@ -65,9 +65,9 @@ addEventListener('keydown', (e) => {
   if (e.repeat) return;
   if (e.code === 'KeyM') sonido.alternar();
   if (pantalla === 'menu') {
-    if (e.code === 'Enter' || e.code === 'NumpadEnter' || e.code === 'Digit1') empezar('local');
-    else if (e.code === 'Digit2') empezar('bot');
-    else if (e.code === 'Digit3') empezar('online');
+    // un jugador por compu: 1 o Enter contra la máquina, 2 online
+    if (e.code === 'Enter' || e.code === 'NumpadEnter' || e.code === 'Digit1') empezar('bot');
+    else if (e.code === 'Digit2') empezar('online');
     return;
   }
   const actual = vista();

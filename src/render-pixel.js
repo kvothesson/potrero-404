@@ -562,21 +562,20 @@ export function crearPintor(canvas, opciones = {}) {
     texto(b, '2016 → 2026', BW / 2, 74, { alinear: 'centro', color: '#9890c0' });
 
     if (!extra.tactil) {
-      // una columna por jugador: auto, teclas de manejo y una fila por acción (ícono → tecla)
-      const columna = (i, cx, manejo, freno, nitro, salto) => {
-        b.fillStyle = COLOR_AUTO[i].lado; b.fillRect(cx - 62, 90, 124, 168);
-        b.fillStyle = COLOR_AUTO[i].cuerpo; b.fillRect(cx - 61, 91, 122, 166);
-        b.fillStyle = 'rgba(20,15,34,.55)'; b.fillRect(cx - 58, 124, 116, 130);
-        autoChico(i, cx, 108, ANGULOS * 3 / 4);
-        tecla(b, manejo[0], cx - 7, 130);
-        tecla(b, manejo[1], cx - 23, 146); tecla(b, manejo[2], cx - 7, 146); tecla(b, manejo[3], cx + 9, 146);
-        const fila = (y, nombre, etq, ancho) => { icono(b, nombre, cx - 44, y + 2); icono(b, 'flecha', cx - 28, y + 2); tecla(b, etq, cx - 14, y, ancho); };
-        fila(172, 'derrape', freno[0], freno[1]);
-        fila(198, 'nitro', nitro[0], nitro[1]);
-        fila(224, 'salto', salto[0], salto[1]);
+      // un jugador por compu: se maneja con W A S D o con las flechas, lo que quede cómodo
+      b.fillStyle = '#2a2448'; b.fillRect(14, 90, BW - 28, 168);
+      autoChico(0, BW / 2, 106, ANGULOS * 3 / 4);
+      const cruz = (cx, t) => { tecla(b, t[0], cx - 7, 124); tecla(b, t[1], cx - 23, 140); tecla(b, t[2], cx - 7, 140); tecla(b, t[3], cx + 9, 140); };
+      cruz(BW / 2 - 50, ['W', 'A', 'S', 'D']);
+      texto(b, '/', BW / 2, 140, { alinear: 'centro', color: '#9890b8' });
+      cruz(BW / 2 + 50, ['↑', '←', '↓', '→']);
+      const fila = (y, nombre, a, aw, c, cw) => {
+        icono(b, nombre, BW / 2 - 78, y + 2); icono(b, 'flecha', BW / 2 - 62, y + 2);
+        tecla(b, a, BW / 2 - 46, y, aw); texto(b, '/', BW / 2 - 40 + aw + 2, y + 3, { color: '#9890b8' }); tecla(b, c, BW / 2 - 28 + aw + 6, y, cw);
       };
-      columna(0, BW / 2 - 66, ['W', 'A', 'S', 'D'], ['⇧', 21], ['', 40], ['E', 13]);
-      columna(1, BW / 2 + 66, ['↑', '←', '↓', '→'], ['⇧', 21], ['CTRL', 29], ['⏎', 21]);
+      fila(170, 'derrape', '⇧', 21, 'C', 13);
+      fila(196, 'nitro', '', 40, 'CTRL', 29);
+      fila(222, 'salto', 'E', 13, '⏎', 21);
     } else {
       // en el celu: palanca a la izquierda maneja, botones a la derecha
       b.fillStyle = '#2a2448'; b.fillRect(14, 90, BW - 28, 168);
@@ -595,7 +594,8 @@ export function crearPintor(canvas, opciones = {}) {
     icono(b, 'flecha', BW / 2 + 2, 268); icono(b, 'trofeo', BW / 2 + 16, 266, 2);
 
     // tres modos: dos en un teclado, contra la máquina, online con un link
-    const modos = extra.tactil ? [['bot', 0], ['online', 1]] : [['local', 0], ['bot', 1], ['online', 2]];
+    // un jugador por compu: contra la máquina u online con un link
+    const modos = [['bot', 0], ['online', 1]];
     const w = 76, sep = 10, total = modos.length * w + (modos.length - 1) * sep;
     modos.forEach(([id], k) => {
       boton(id, BW / 2 - total / 2 + k * (w + sep), 292, w, 52, id === 'online' ? { cuerpo: '#2f8f6a', lado: '#1c5a42' } : GRIS, (x, y) => {
