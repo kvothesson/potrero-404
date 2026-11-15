@@ -9,7 +9,8 @@ import { conectar, codigoNuevo } from './red.js';
 const params = new URLSearchParams(location.search);
 // Arte en pixel a lo Super Nintendo; con ?liso se ve el dibujo vectorial anterior.
 const canvas = document.getElementById('juego');
-const pintor = (params.has('liso') ? pintorLiso : pintorPixel)(canvas);
+// ?cancha=estadio elige la cancha de pasto; por defecto se juega en la Ruta 404.
+const pintor = (params.has('liso') ? pintorLiso : pintorPixel)(canvas, { cancha: params.get('cancha') || 'ruta404' });
 const sonido = crearSonido();
 // Opción oculta: ?fisica=2016 usa la fórmula de rebote original de la pelota (Ball.as).
 const fisica = params.get('fisica') === '2016' ? '2016' : null;

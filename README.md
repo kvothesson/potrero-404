@@ -17,6 +17,15 @@ El salto es el *dodge* de Rocket League: solo va para adelante, con doblar va al
 
 Esc pausa, R reinicia desde la pausa y M apaga el sonido. Gana el primero en hacer 3 goles.
 
+## Canchas
+
+Cada cancha está en `src/canchas.js`: elige el color de cada parte del fondo y qué decorado lleva.
+
+- **Ruta 404** (la de siempre): un picado de noche en la Ruta 404 del Universo Austral. Hay asfalto con grietas y bacheo, alambrado, y píxeles muertos que titilan con glitch. La pelota es una **Luz Mala** que flota y alumbra. El nitro es el **aceite negro** de los Hombres-Tanque: tambores en las esquinas y charcos en el medio. Los **Hombres-Tanque** miran desde la banquina y sus ojos siguen a la Luz Mala. Todo está a oscuras salvo la Luz Mala y los faros. La Luz Mala como pelota y el aceite como nitro son expansión del canon, no canon nuevo.
+- **Estadio** (`?cancha=estadio`): la cancha de pasto con tribunas.
+
+Ideas para más canchas: Hielo Negro (fin de la Ruta 3, todo derrapa más) y Potrero Aleph.
+
 ## Sin idioma
 
 En pantalla no hay palabras, para que se entienda en cualquier idioma. Los jugadores se distinguen por el color. Los controles se muestran con teclas dibujadas e íconos (derrape, nitro, salto), y para "se gana con 3" hay tres pelotas, una flecha y un trofeo. El gol se muestra con el auto que lo hizo, la pelota y el marcador, y el final con el trofeo y la tecla ⏎ para la revancha. El único texto que queda es el nombre del juego.

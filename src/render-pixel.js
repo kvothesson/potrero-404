@@ -3,6 +3,7 @@
 // se agranda a escala entera sin suavizado. Solo lee el estado; nunca lo cambia.
 import { W, H, CAMPO, AUTOS, GOLES_PARA_GANAR, FPS, paredes } from './sim.js';
 import { texto, icono, tecla } from './fuente.js';
+import { CANCHAS, hash } from './canchas.js';
 // Sin palabras en pantalla: todo se dice con colores, números, íconos y teclas dibujadas,
 // para que se entienda en cualquier idioma.
 
@@ -82,7 +83,27 @@ function spritesAuto(col) {
   return out;
 }
 
-// ---------- pelota: 8 cuadros de rodado ----------
+// ---------- pelota: 8 cuadros ----------
+// Luz Mala: una esfera de luz que titila (Ruta 404). Si no, la pelota de fútbol que rueda.
+function spritesLuzMala() {
+  const out = [];
+  for (let k = 0; k < 8; k++) {
+    const cv = document.createElement('canvas'); cv.width = 13; cv.height = 13;
+    const g = cv.getContext('2d'), img = g.createImageData(13, 13), d = img.data;
+    const pon = (x, y, col, a = 255) => { const i = (y * 13 + x) * 4; d[i] = col[0]; d[i + 1] = col[1]; d[i + 2] = col[2]; d[i + 3] = a; };
+    const pulso = 0.5 + 0.5 * Math.sin(k / 8 * Math.PI * 2);
+    for (let y = 0; y < 13; y++) for (let x = 0; x < 13; x++) {
+      const r = Math.hypot(x - 6, y - 6) + (hash(x, y, k) - 0.5) * 0.9;
+      if (r < 1.8) pon(x, y, [255, 255, 255]);
+      else if (r < 3.2) pon(x, y, [214, 255, 226]);
+      else if (r < 4.6 + pulso * 0.6) pon(x, y, [130, 236, 176]);
+      else if (r < 6.2 && hash(x, y, k + 3) < 0.45) pon(x, y, [70, 180, 130], 200);
+    }
+    g.putImageData(img, 0, 0);
+    out.push(cv);
+  }
+  return out;
+}
 function spritesPelota() {
   const out = [];
   for (let k = 0; k < 8; k++) {
@@ -107,8 +128,9 @@ function spritesPelota() {
   return out;
 }
 
-// ---------- cancha fija: pasto, líneas, paredes en tres cuartos, gradas ----------
-function fondoFijo() {
+// ---------- cancha fija: el piso, las líneas, las paredes en tres cuartos y lo de afuera ----------
+// Se decide la categoría de cada píxel y la cancha elige su color (ver canchas.js).
+function fondoFijo(cancha) {
   const cv = document.createElement('canvas'); cv.width = BW; cv.height = BH;
   const g = cv.getContext('2d'), img = g.createImageData(BW, BH), d = img.data;
   const poly = paredes().puntos.map(([x, y]) => [bx(x), by(y)]);
@@ -140,45 +162,47 @@ function fondoFijo() {
     if (x >= X0 && x <= X1 && (y === HT || y === HB)) return true;
     return false;
   };
+  const info = { BW, BH, OY, cx: Math.round(cx), ruta0: Math.round(bx(CAMPO.L)), ruta1: Math.round(bx(CAMPO.R)) };
 
   for (let y = 0; y < BH; y++) for (let x = 0; x < BW; x++) {
     const px = x + 0.5, py = y + 0.5;
+    let cat;
     if (m(x, y)) {
-      // ¿borde de la pared?
       let tope = false;
-      for (let a = -2; a <= 2 && !tope; a++) for (let b = -2; b <= 2; b++) if (Math.abs(a) + Math.abs(b) <= 2 && !m(x + a, y + b)) { tope = true; break; }
-      if (tope) { pon(x, y, P.paredTope); continue; }
-      // cara de la pared de arriba (mira a la cámara)
-      let cara = 0;
-      for (let k = 3; k <= 6; k++) if (!m(x, y - k)) { cara = k; break; }
-      if (cara) { pon(x, y, cara < 5 ? P.paredCara : P.paredCaraOsc); continue; }
-      if (cara === 0 && !m(x, y - 7)) { pon(x, y, P.paredSombra); continue; }
-      // red de los arcos
-      if (py < T || py > B) {
-        const hilo = (x % 3 === 0) || (y % 3 === 0);
-        pon(x, y, hilo ? P.redHilo : P.red); continue;
+      for (let a = -2; a <= 2 && !tope; a++) for (let c = -2; c <= 2; c++) if (Math.abs(a) + Math.abs(c) <= 2 && !m(x + a, y + c)) { tope = true; break; }
+      if (tope) cat = 'tope';
+      else {
+        let cara = 0;
+        for (let k = 3; k <= 6; k++) if (!m(x, y - k)) { cara = k; break; }
+        if (cara) cat = cara < 5 ? 'cara1' : 'cara2';
+        else if (!m(x, y - 7)) cat = 'sombra';
+        else if (py < T || py > B) cat = (x % 3 === 0) || (y % 3 === 0) ? 'redHilo' : 'red';
+        else if (linea(px, py)) cat = 'linea';
+        else cat = 'campo';
       }
-      if (linea(px, py)) { pon(x, y, P.linea); continue; }
-      // pasto en franjas de 16 px con tramado en el borde
-      const fr = Math.floor((y - OY) / 16), dentro = (y - OY) % 16;
-      let col = fr % 2 ? P.pasto1 : P.pasto2;
-      if (dentro === 0 && (x + y) % 2) col = fr % 2 ? P.pasto2 : P.pasto1;
-      if ((x * 7 + y * 13) % 29 === 0) col = P.pasto3;
-      pon(x, y, col);
-    } else {
-      // contorno oscuro pegado a la pared
-      if (m(x + 1, y) || m(x - 1, y) || m(x, y + 1) || m(x, y - 1)) { pon(x, y, hexA(P.contorno)); continue; }
-      // gradas: escalones de 4 px
-      const esc = Math.floor(y / 4) % 2, borde = y % 4 === 3;
-      pon(x, y, borde ? P.grada3 : esc ? P.grada1 : P.grada2);
-    }
+    } else cat = m(x + 1, y) || m(x - 1, y) || m(x, y + 1) || m(x, y - 1) ? 'contorno' : 'afuera';
+    pon(x, y, cancha.color(cat, x, y, info));
   }
   g.putImageData(img, 0, 0);
-  // palos de color
+  // palos con el color de quien defiende
   [[T, COLOR_AUTO[0]], [B, COLOR_AUTO[1]]].forEach(([y, col]) => {
     [g0, g1].forEach((x) => { g.fillStyle = P.contorno; g.fillRect(Math.round(x) - 2, Math.round(y) - 2, 5, 5); g.fillStyle = col.cuerpo; g.fillRect(Math.round(x) - 1, Math.round(y) - 1, 3, 3); });
   });
   return { cv, M };
+}
+
+// Hombres-Tanque: gauchos de silicio quietos en la banquina, del otro lado del alambrado.
+function armarHombres(M) {
+  const lugares = [];
+  const libre = (x, y) => { for (let a = -6; a <= 6; a++) for (let c = -8; c <= 12; c++) { const xx = x + a, yy = y + c; if (xx < 0 || yy < 0 || xx >= BW || yy >= BH || M[yy * BW + xx]) return false; } return true; };
+  const cerca = (x, y) => { for (let a = -14; a <= 14; a += 2) for (let c = -12; c <= 16; c += 2) { const xx = x + a, yy = y + c; if (xx >= 0 && yy >= 0 && xx < BW && yy < BH && M[yy * BW + xx]) return true; } return false; };
+  for (let k = 0; k < 600 && lugares.length < 12; k++) {
+    const x = 4 + Math.floor(hash(k, 7, 21) * (BW - 8)), y = 6 + Math.floor(hash(k, 8, 21) * (BH - 20));
+    if (!libre(x, y) || !cerca(x, y)) continue;
+    if (lugares.some((o) => Math.abs(o.x - x) < 14 && Math.abs(o.y - y) < 18)) continue;
+    lugares.push({ x, y, fase: hash(k, 9, 21) * 6.28, gota: 0 });
+  }
+  return lugares;
 }
 
 // Público: un puntito con cabeza en cada lugar libre de las gradas.
@@ -199,14 +223,18 @@ function armarPublico(M) {
   return gente;
 }
 
-export function crearPintor(canvas) {
+export function crearPintor(canvas, opciones = {}) {
   const ctx = canvas.getContext('2d');
   const buf = document.createElement('canvas'); buf.width = BW; buf.height = BH;
   const b = buf.getContext('2d');
-  const { cv: fondo, M } = fondoFijo();
-  const gente = armarPublico(M);
+  const cancha = CANCHAS[opciones.cancha] || CANCHAS.ruta404;
+  const { cv: fondo, M } = fondoFijo(cancha);
+  const gente = cancha.publico === 'tribuna' ? armarPublico(M) : [];
+  const hombres = cancha.publico === 'hombresTanque' ? armarHombres(M) : [];
   const autos = COLOR_AUTO.map(spritesAuto);
-  const pelotas = spritesPelota();
+  const pelotas = cancha.pelota === 'luzMala' ? spritesLuzMala() : spritesPelota();
+  const oscuro = document.createElement('canvas'); oscuro.width = BW; oscuro.height = BH;
+  const octx = oscuro.getContext('2d');
   const marcas = document.createElement('canvas'); marcas.width = BW; marcas.height = BH;
   const mctx = marcas.getContext('2d');
   const chispas = [];
@@ -234,6 +262,7 @@ export function crearPintor(canvas) {
 
   function pastillas(s) {
     const t = s.cuadro;
+    if (cancha.nitro === 'aceite') return aceite(s);
     for (const p of s.pastillas) {
       const x = Math.round(bx(p.x)), y = Math.round(by(p.y)), r = p.poder > 50 ? 4 : 2;
       if (!p.activa) { b.fillStyle = 'rgba(20,10,0,.35)'; b.fillRect(x - r, y - 1, r * 2 + 1, 3); continue; }
@@ -245,6 +274,119 @@ export function crearPintor(canvas) {
       b.fillStyle = P.nitro[2]; b.fillRect(x - r + 1, y - r + 1 + sube - 2, Math.max(1, r - 1), Math.max(1, r - 1));
       if ((t >> 3) % 6 === 0) { b.fillStyle = '#fff'; b.fillRect(x + r - 1, y - r + sube - 3, 1, 1); }
     }
+  }
+
+  // Nitro como aceite negro: tambores en las esquinas, charcos en el medio, con brillo tornasol.
+  function aceite(s) {
+    const t = s.cuadro;
+    for (const p of s.pastillas) {
+      const x = Math.round(bx(p.x)), y = Math.round(by(p.y)), grande = p.poder > 50;
+      if (!p.activa) { b.fillStyle = 'rgba(8,6,12,.45)'; b.fillRect(x - 3, y, 7, 2); continue; }
+      if (grande) {
+        // tambor visto de arriba en tres cuartos: costado, tapa y brillo
+        b.fillStyle = '#0c0a12'; b.fillRect(x - 6, y - 7, 13, 14);
+        b.fillStyle = '#3a2c48'; b.fillRect(x - 5, y - 2, 11, 8);
+        b.fillStyle = '#56446a'; b.fillRect(x - 5, y + 1, 11, 1);
+        b.fillStyle = '#20202a'; b.fillRect(x - 5, y - 6, 11, 5);
+        b.fillStyle = '#5c5c6a'; b.fillRect(x - 5, y - 6, 11, 1); b.fillRect(x - 5, y - 2, 11, 1);
+        const brillo = ['#7a4cc0', '#3fb8a0', '#c060a0'][(t >> 4) % 3];
+        b.fillStyle = brillo; b.fillRect(x - 2 + ((t >> 3) % 4), y - 4, 2, 1);
+        // gota que cae del borde
+        const g = (t + x * 7) % 90;
+        if (g < 30) { b.fillStyle = '#0c0a12'; b.fillRect(x + 4, y + 6 + (g >> 3), 1, 2); }
+      } else {
+        b.fillStyle = '#0c0a12';
+        b.fillRect(x - 3, y - 1, 7, 3); b.fillRect(x - 2, y - 2, 5, 5);
+        const brillo = ['#7a4cc0', '#3fb8a0', '#c060a0', '#4a7ad0'][((t >> 3) + Math.round(p.x)) % 4];
+        b.fillStyle = brillo; b.fillRect(x - 1 + ((t >> 4) % 2), y - 1, 2, 1);
+      }
+    }
+  }
+
+  // Píxeles muertos de la Ruta 404: cuadrados negros que titilan y a veces se corren de color.
+  const muertos = [];
+  for (let k = 0; muertos.length < 14 && k < 300; k++) {
+    const x = Math.floor(hash(k, 1, 77) * BW), y = Math.floor(hash(k, 2, 77) * BH);
+    if (!M[y * BW + x] || (Math.abs(y - by(H / 2)) < 30 && Math.abs(x - bx(W / 2)) < 30)) continue;
+    muertos.push({ x, y, t: 2 + Math.floor(hash(k, 3, 77) * 4), fase: Math.floor(hash(k, 4, 77) * 200) });
+  }
+  function pixelesMuertos(s) {
+    const t = s.cuadro;
+    for (const m of muertos) {
+      const ciclo = (t + m.fase) % 240;
+      if (ciclo > 200 && ciclo % 4 < 2) continue;            // a veces desaparece
+      b.fillStyle = 'rgba(120,200,255,.16)'; b.fillRect(m.x - 1, m.y - 1, m.t + 2, m.t + 2);
+      b.fillStyle = '#000'; b.fillRect(m.x, m.y, m.t, m.t);
+      if (ciclo < 6) {                                          // glitch: se corre en rojo y celeste
+        b.fillStyle = 'rgba(255,40,90,.8)'; b.fillRect(m.x - 3, m.y, m.t, 1);
+        b.fillStyle = 'rgba(40,220,255,.8)'; b.fillRect(m.x + 3, m.y + m.t - 1, m.t + 4, 1);
+      }
+    }
+    // cada tanto, una franja de glitch cruza la ruta
+    if ((t % 420) < 4) {
+      const y = Math.floor(hash(t >> 4, 5, 5) * BH);
+      b.fillStyle = 'rgba(40,220,255,.25)'; b.fillRect(0, y, BW, 1);
+      b.fillStyle = 'rgba(255,40,90,.25)'; b.fillRect(0, y + 2, BW, 1);
+    }
+  }
+
+  // Los Hombres-Tanque: silueta con sombrero, poncho y ojos que siguen a la Luz Mala.
+  function hombresTanque(s, soloOjos) {
+    const pb = s.pelota, ex = bx(pb.x), ey = by(pb.y);
+    for (const h of hombres) {
+      const x = h.x, y = h.y;
+      if (!soloOjos) {
+        b.fillStyle = 'rgba(0,0,0,.4)'; b.fillRect(x - 4, y + 10, 9, 2);
+        b.fillStyle = '#0e0e14';
+        b.fillRect(x - 4, y, 9, 1); b.fillRect(x - 2, y - 2, 5, 2);      // sombrero
+        b.fillRect(x - 2, y + 1, 5, 3);                                    // cabeza
+        b.fillRect(x - 3, y + 4, 7, 5); b.fillRect(x - 4, y + 6, 9, 2);   // poncho
+        b.fillRect(x - 2, y + 9, 2, 2); b.fillRect(x + 1, y + 9, 2, 2);   // piernas
+        b.fillStyle = '#2a2a36'; b.fillRect(x - 4, y, 1, 1); b.fillRect(x - 3, y + 4, 1, 3);
+        // aceite negro que gotea
+        h.gota = (h.gota + 1) % (60 + ((h.fase * 10) | 0));
+        if (h.gota < 20) { b.fillStyle = '#05040a'; b.fillRect(x + 2, y + 9 + (h.gota >> 2), 1, 2); }
+      } else {
+        const mx = Math.sign(Math.round((ex - x) / 20)), my = ey > y + 20 ? 1 : 0;
+        const rojo = festejo > 0 && (s.cuadro >> 2) % 2;
+        b.fillStyle = rojo ? '#ff3050' : '#c8f4ff';
+        b.fillRect(x - 1 + mx, y + 2 + my, 1, 1); b.fillRect(x + 1 + mx, y + 2 + my, 1, 1);
+      }
+    }
+  }
+
+  // Noche: todo oscuro salvo la Luz Mala, los faros y un poco alrededor de cada auto.
+  function noche(s) {
+    octx.globalCompositeOperation = 'source-over';
+    octx.clearRect(0, 0, BW, BH);
+    octx.fillStyle = 'rgba(6,8,22,.6)'; octx.fillRect(0, 0, BW, BH);
+    octx.globalCompositeOperation = 'destination-out';
+    const aro = (x, y, r, a) => { octx.fillStyle = `rgba(0,0,0,${a})`; octx.beginPath(); octx.arc(Math.round(x), Math.round(y), r, 0, Math.PI * 2); octx.fill(); };
+    // Luz Mala: tres aros escalonados, que titilan
+    const pb = s.pelota, ex = bx(pb.x), ey = by(pb.y), tit = 1 + 0.08 * Math.sin(s.cuadro / 3) + (hash(s.cuadro, 1) < 0.05 ? -0.2 : 0);
+    aro(ex, ey, 44 * tit, 0.3); aro(ex, ey, 30 * tit, 0.4); aro(ex, ey, 17 * tit, 0.6);
+    for (const c of s.autos) {
+      const x = bx(c.x), y = by(c.y), co = Math.cos(c.rot * Math.PI / 180), si = Math.sin(c.rot * Math.PI / 180);
+      aro(x, y, 14, 0.35);
+      // faros: un cono hacia adelante en dos escalones
+      for (const [largo, ancho, a] of [[46, 18, 0.35], [30, 11, 0.4]]) {
+        octx.fillStyle = `rgba(0,0,0,${a})`;
+        octx.beginPath();
+        octx.moveTo(x + co * 9 - si * 4, y + si * 9 + co * 4);
+        octx.lineTo(x + co * largo - si * ancho, y + si * largo + co * ancho);
+        octx.lineTo(x + co * largo + si * ancho, y + si * largo - co * ancho);
+        octx.lineTo(x + co * 9 + si * 4, y + si * 9 - co * 4);
+        octx.closePath(); octx.fill();
+      }
+      if (c.nitroActivo) aro(x - co * 14, y - si * 14, 10, 0.5);
+    }
+    for (const p of s.pastillas) if (p.activa && p.poder > 50) aro(bx(p.x), by(p.y), 8, 0.25);
+    b.drawImage(oscuro, 0, 0);
+    // brillo verde de la Luz Mala sobre lo que ilumina
+    b.globalCompositeOperation = 'lighter';
+    b.fillStyle = 'rgba(40,110,70,.25)'; b.beginPath(); b.arc(Math.round(ex), Math.round(ey), Math.round(18 * tit), 0, Math.PI * 2); b.fill();
+    b.fillStyle = 'rgba(60,160,110,.3)'; b.beginPath(); b.arc(Math.round(ex), Math.round(ey), 9, 0, Math.PI * 2); b.fill();
+    b.globalCompositeOperation = 'source-over';
   }
 
   function auto(c, i) {
@@ -260,7 +402,7 @@ export function crearPintor(canvas) {
       const co = Math.cos(c.rot * Math.PI / 180), si = Math.sin(c.rot * Math.PI / 180);
       for (let n = 0; n < 6; n++) {
         const d = 12 + n * 1.6 + Math.random() * 2;
-        b.fillStyle = n < 2 ? P.nitro[2] : n < 4 ? P.nitro[1] : P.nitro[0];
+        b.fillStyle = cancha.nitro === 'aceite' ? (n < 2 ? '#ffb030' : n < 3 ? '#e07818' : n < 5 ? '#2a2430' : '#141018') : n < 2 ? P.nitro[2] : n < 4 ? P.nitro[1] : P.nitro[0];
         b.fillRect(Math.round(x - co * d + (Math.random() - 0.5) * 2), Math.round(y - si * d - alto + (Math.random() - 0.5) * 2), 2, 2);
       }
     }
@@ -273,7 +415,7 @@ export function crearPintor(canvas) {
     // marcas de derrape
     if (Math.abs(c.lat || 0) > 0.9 && !c.salto) {
       const co = Math.cos(c.rot * Math.PI / 180), si = Math.sin(c.rot * Math.PI / 180);
-      mctx.fillStyle = 'rgba(16,40,20,.35)';
+      mctx.fillStyle = cancha.noche ? 'rgba(8,8,12,.5)' : 'rgba(16,40,20,.35)';
       [-1, 1].forEach((l) => mctx.fillRect(Math.round(x - co * 6 - si * 5 * l), Math.round(y - si * 6 + co * 5 * l + 2), 1, 1));
       if (Math.random() < 0.4) chispazo(x - co * 9, y - si * 9, 1, '#d8d8d8');
     }
@@ -281,6 +423,12 @@ export function crearPintor(canvas) {
 
   function pelota(p) {
     const x = Math.round(bx(p.x)), y = Math.round(by(p.y));
+    if (cancha.pelota === 'luzMala') {
+      // flota: sin sombra dura, sube y baja apenas
+      const flota = Math.round(Math.sin(Date.now() / 260) * 1.5);
+      b.drawImage(pelotas[(Date.now() / 90 | 0) & 7], x - 6, y - 9 + flota);
+      return;
+    }
     b.fillStyle = 'rgba(0,0,0,.38)'; b.fillRect(x - 4, y + 4, 9, 3); b.fillRect(x - 3, y + 3, 7, 5);
     b.drawImage(pelotas[Math.floor(p.giro * 1.3) & 7], x - 6, y - 8);
   }
@@ -502,9 +650,16 @@ export function crearPintor(canvas) {
     publico(s);
     b.drawImage(marcas, 0, 0);
     pastillas(s);
+    if (hombres.length) hombresTanque(s, false);
     // ordenar por y para que lo de adelante tape a lo de atrás (tres cuartos)
     const cosas = [...s.autos.map((c, i) => ({ y: c.y, f: () => auto(c, i) })), { y: s.pelota.y, f: () => pelota(s.pelota) }];
     cosas.sort((a, z) => a.y - z.y).forEach((o) => o.f());
+    if (cancha.noche) {
+      noche(s);
+      if (cancha.pixelesMuertos) pixelesMuertos(s);     // negro puro: ni la luz los alcanza
+      pelota(s.pelota);                                  // la Luz Mala no se apaga con la noche
+      if (hombres.length) hombresTanque(s, true);         // los ojos brillan en lo oscuro
+    }
     efectos(s);
     hud(s);
     const r = extra.red;
