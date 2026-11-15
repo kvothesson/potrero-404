@@ -21,7 +21,9 @@ const R_RUEDA = 11;                    // círculos de choque del auto (frente y
 const R_PELOTA = 10;
 const ROCE_PELOTA = 0.01;              // speedReduction de Ball.as
 const EMPUJE_EXTRA = 3;                // forceAdd de Ball.as
-const NITRO_MAX = 100, NITRO_INICIAL = 30, NITRO_GASTO = 2;
+// En el original el nitro se gastaba 2 por cuadro: 30 duraban un cuarto de segundo y no se notaba.
+const NITRO_MAX = 100, NITRO_INICIAL = 40, NITRO_GASTO = 0.7;  // ahora la barra llena dura unos 2,4 s
+const AGARRE = 0.72, AGARRE_DERRAPE = 0.965;                    // cuánto patina de costado por cuadro
 const FRENO_FRENADA = 0.9;             // speedReduction de Car.as era 0.8: frenaba de golpe
 const CUENTA = 3 * FPS;                // timeRespawn de Main.as
 const FESTEJO = 1.2 * FPS;
@@ -69,7 +71,7 @@ export function nuevoEstado() {
 function reubicar(s) {
   s.autos.forEach((c, i) => {
     const sp = AUTOS[i].spawn;
-    c.x = sp.x; c.y = sp.y; c.rot = sp.rot; c.vel = 0; c.volante = 0; c.giro = AUTOS[i].giro; c.frenoActivo = false; c.nitroActivo = false;
+    c.x = sp.x; c.y = sp.y; c.rot = sp.rot; c.vel = 0; c.lat = 0; c.volante = 0; c.giro = AUTOS[i].giro; c.frenoActivo = false; c.nitroActivo = false;
   });
   Object.assign(s.pelota, { x: W / 2, y: H / 2, vx: 0, vy: 0 });
 }
@@ -143,9 +145,19 @@ function manejar(s, c, a, e) {
   const agarre = Math.min(1, Math.abs(c.vel) / 2.2);
   const objetivo = quiere * c.giro * agarre * Math.sign(c.vel || 1);
   c.volante = (c.volante || 0) + (objetivo - (c.volante || 0)) * 0.35;
+
+  // Derrape: el auto tiene velocidad hacia adelante (vel) y de costado (lat). Al girar, la
+  // velocidad que traía se reparte entre las dos. Con agarre normal lo de costado se pierde
+  // rápido; con el freno de mano casi no se pierde y el auto patina de cola.
+  const vx = Math.cos(rad(c.rot)) * c.vel - Math.sin(rad(c.rot)) * (c.lat || 0);
+  const vy = Math.sin(rad(c.rot)) * c.vel + Math.cos(rad(c.rot)) * (c.lat || 0);
   c.rot = (((c.rot + c.volante) % 360) + 360) % 360;
-  c.x += Math.cos(rad(c.rot)) * c.vel;
-  c.y += Math.sin(rad(c.rot)) * c.vel;
+  const co = Math.cos(rad(c.rot)), si = Math.sin(rad(c.rot));
+  c.vel = vx * co + vy * si;
+  c.lat = (-vx * si + vy * co) * (c.frenoActivo ? AGARRE_DERRAPE : AGARRE);
+  if (c.frenoActivo) c.vel *= 0.99;
+  c.x += co * c.vel - si * c.lat;
+  c.y += si * c.vel + co * c.lat;
 }
 
 function circulosAuto(c) {
@@ -175,6 +187,7 @@ function chocarPared(s, c) {
     const n = empujarFuera(q, R_RUEDA);
     if (!n) continue;
     c.x += q.x - k.x; c.y += q.y - k.y;
+    c.lat = (c.lat || 0) * 0.4;
     // Contra la pared rebota un poco en vez de clavarse; de costado solo roza.
     const haciaPared = (k.frente && c.vel > 0) || (!k.frente && c.vel < 0);
     if (haciaPared) {

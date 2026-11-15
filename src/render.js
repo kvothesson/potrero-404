@@ -109,9 +109,10 @@ export function crearPintor(canvas) {
     ctx.fillStyle = c.vel < 0 || c.frenoActivo ? '#ff3030' : '#8a1010'; ctx.fillRect(-22, -9, 2, 5); ctx.fillRect(-22, 4, 2, 5);
     ctx.restore();
     // marcas de derrape
-    if (c.frenoActivo && Math.abs(c.vel) > 1.5) {
+    if (Math.abs(c.lat || 0) > 0.9) {
       const co = Math.cos(c.rot * Math.PI / 180), si = Math.sin(c.rot * Math.PI / 180);
-      mctx.fillStyle = 'rgba(20,30,20,.28)';
+      mctx.fillStyle = `rgba(20,30,20,${Math.min(0.45, Math.abs(c.lat) * 0.12)})`;
+      if (Math.random() < 0.5) chispazo(c.x - co * 18, c.y - si * 18, 1, 'rgba(230,230,230,.7)');
       [-1, 1].forEach((lado) => {
         const x = c.x - co * 12 - si * 10 * lado, y = c.y - si * 12 + co * 10 * lado;
         mctx.fillRect(x - 1.5, y - 1.5, 3, 3);
