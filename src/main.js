@@ -254,7 +254,7 @@ function vista() {
 function extras() {
   return {
     pantalla: pantalla === 'amigo' ? 'online' : pantalla, rankeada: pantalla === 'online', pausa, tactil: !!tactil, seguir: aQuienSigo(),
-    yo, ranking, mostrarRespaldo, respaldo: codigoRespaldo(), camPelota,
+    yo, ranking, mostrarRespaldo, respaldo: codigoRespaldo(), camPelota, sonido: sonido.prendido(),
     red: red && { lado: red.lado, jugadores: red.jugadores, codigo: red.codigo, caido: red.caido, conectado: red.conectado, ping: red.ping,
       listo: !!red.estado, nombres: red.nombres, elo: red.elo, rankeada: pantalla === 'online' },
   };

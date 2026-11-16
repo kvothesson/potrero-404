@@ -805,7 +805,7 @@ export function crearPintor(canvas, opciones = {}) {
     const cx = colB ? colB.x : colA.x, cw = colB ? colB.w : colA.w;
     let yc = colB ? colB.y : y + 4;
     if (!extra.tactil) {
-      b.fillStyle = '#2a2448'; b.fillRect(cx, yc, cw, 100);
+      b.fillStyle = '#2a2448'; b.fillRect(cx, yc, cw, 124);
       const fila = (yy, ic, nombre, teclas) => {
         icono(b, ic, cx + 6, yy + 2);
         texto(b, nombre, cx + 20, yy + 3, { color: '#c8c2ea' });
@@ -819,7 +819,8 @@ export function crearPintor(canvas, opciones = {}) {
       fila(yc + 30, 'derrape', t('derrape'), [['⇧', 21], ['C', 13]]);
       fila(yc + 54, 'nitro', t('nitro'), [['', 30], ['CTRL', 29]]);
       fila(yc + 78, 'salto', t('salto'), [['E', 13], ['⏎', 21]]);
-      yc += 106;
+      fila(yc + 102, 'pausa', t('pausa'), [['ESC', 21]]);
+      yc += 130;
     }
     if (!colB) y = yc; else y = Math.max(y, yc);
 
@@ -837,9 +838,14 @@ export function crearPintor(canvas, opciones = {}) {
       texto(b, t('ranking'), x + 17, yy + 5, { color: '#fff' });
       if (!extra.tactil) tecla(b, '4', x + rw - 6, yy - 9);
     });
-    if (!extra.tactil) { tecla(b, 'ESC', 8, BH - 22, 21); icono(b, 'pausa', 32, BH - 20); }
-    boton('sonido', BW - 30, BH - 26, 22, 18, GRIS, (x, yy) => { icono(b, 'sonido', x + 7, yy + 4); });
-    if (!extra.tactil) tecla(b, 'M', BW - 48, BH - 24);
+    // sonido: verde prendido; gris y tachado apagado
+    const sw = 22 + t('sonido').length * 6;
+    boton('sonido', BW - sw - 6, BH - 26, sw, 18, extra.sonido ? { cuerpo: '#2f8f6a', lado: '#1c5a42' } : GRIS, (x, yy) => {
+      icono(b, 'sonido', x + 5, yy + 4);
+      if (!extra.sonido) { b.fillStyle = '#ff6a6a'; for (let k = 0; k < 9; k++) b.fillRect(x + 5 + k, yy + 4 + k, 1, 1); }
+      texto(b, t('sonido'), x + 17, yy + 5, { color: extra.sonido ? '#fff' : '#9890b8' });
+      if (!extra.tactil) tecla(b, 'M', x + sw - 6, yy - 9);
+    });
   }
 
   // Sala online: código grande, botón para copiar o compartir el link y quién falta.

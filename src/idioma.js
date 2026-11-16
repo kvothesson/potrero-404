@@ -15,6 +15,8 @@ const TEXTOS = {
   derrape: { es: 'DERRAPE', en: 'DRIFT', pt: 'DERRAPAR' },
   nitro: { es: 'NITRO', en: 'NITRO', pt: 'NITRO' },
   salto: { es: 'SALTO', en: 'JUMP', pt: 'PULO' },
+  pausa: { es: 'PAUSA', en: 'PAUSE', pt: 'PAUSA' },
+  sonido: { es: 'SONIDO', en: 'SOUND', pt: 'SOM' },
   gana: { es: 'GANA EL PRIMERO EN HACER 3', en: 'FIRST TO 3 GOALS WINS', pt: 'VENCE QUEM FIZER 3 GOLS' },
 
   // panel de cuenta (HTML)

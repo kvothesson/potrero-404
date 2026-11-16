@@ -1,7 +1,9 @@
 // Sonidos sintetizados con Web Audio: sin archivos. Arranca mudo hasta la primera tecla
-// (los navegadores lo exigen) y M lo apaga o lo prende.
+// (los navegadores lo exigen) y M lo apaga o lo prende; la elección se recuerda.
+// No hay música: suenan los motores, los golpes, los goles y la ruta.
 export function crearSonido() {
-  let ac = null, maestro = null, prendido = true;
+  let ac = null, maestro = null;
+  let prendido = (() => { try { return localStorage.getItem('potrero404.sonido') !== '0'; } catch { return true; } })();
   const motores = [];
 
   function despertar() {
@@ -18,7 +20,10 @@ export function crearSonido() {
 
   function alternar() {
     prendido = !prendido;
+    try { localStorage.setItem('potrero404.sonido', prendido ? '1' : '0'); } catch { /* sin almacenamiento */ }
+    despertar();
     if (maestro) maestro.gain.setTargetAtTime(prendido ? 0.5 : 0, ac.currentTime, 0.02);
+    if (prendido) setTimeout(() => ruido(0.06, 2400, 0.5), 30);   // un clic para que se note que prendió
   }
 
   function ruido(dur, frec, vol) {
@@ -71,5 +76,5 @@ export function crearSonido() {
     });
   }
 
-  return { despertar, alternar, eventos, motores: motoresSonido };
+  return { despertar, alternar, eventos, motores: motoresSonido, prendido: () => prendido };
 }
