@@ -12,11 +12,12 @@ import { preparar, verificar, elegirIA, anotar } from "../../server/ranking.js";
 import { mailResend } from "../../server/cuentas.js";
 
 // SAL, RESEND y TURNSTILE son secretos: se suben con `cf deploy --secrets-file` (ver README).
-type Env = { DB: any; SAL?: string; RESEND?: string; TURNSTILE?: string };
+type Env = { DB: any; SAL?: string; RESEND?: string; TURNSTILE?: string; METRICAS?: string };
 const cuentas = (env: Env) => ({
 	listo: !!(env.SAL && env.RESEND),
 	sal: env.SAL || "",
 	turnstile: env.TURNSTILE || "",
+	metricas: env.METRICAS || "",
 	enviarMail: env.RESEND ? mailResend(env.RESEND) : async () => false,
 });
 

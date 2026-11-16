@@ -720,10 +720,19 @@ export function crearPintor(canvas, opciones = {}) {
     icono(b, 'trofeo', BW / 2 - 18, y0 + 8, 4);
     autoChico(i, BW / 2 - 52, y0 + 30, 0); autoChico(i, BW / 2 + 52, y0 + 30, ANGULOS / 2);
     marcador(s, BW / 2, y0 + 50, 2, i);
-    boton('otra', BW / 2 - 30, y0 + 86, 60, 22, COLOR_AUTO[i], (x, y) => {
+    // al lado de "otra", sin molestar: desafiar a un amigo con un link (no en la sala con amigos, que ya lo es)
+    const conAmigo = extra.red && !extra.red.rankeada;
+    const dw = 24 + t('desafiar').length * 6, ox = conAmigo ? BW / 2 - 30 : BW / 2 - (60 + 8 + dw) / 2;
+    boton('otra', ox, y0 + 86, 60, 22, COLOR_AUTO[i], (x, y) => {
       if (!extra.tactil) tecla(b, '⏎', x + 8, y + 4, 21);
       icono(b, extra.rankeada ? 'globo' : 'otra', extra.tactil ? x + 21 : x + 36, y + 6, extra.tactil ? 2 : 1);
     });
+    if (!conAmigo) {
+      boton('desafiar', ox + 68, y0 + 86, dw, 22, { cuerpo: '#4a4a9a', lado: '#2a2a62' }, (x, y) => {
+        icono(b, 'cadena', x + 5, y + 7);
+        texto(b, t('desafiar'), x + 18, y + 8, { color: '#fff' });
+      });
+    }
     // rankeada: cuánto Elo ganaste o perdiste, al lado de tu color
     const r = extra.red;
     if (r && r.rankeada && r.elo && r.lado >= 0) {

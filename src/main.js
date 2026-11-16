@@ -198,6 +198,15 @@ addEventListener('keydown', (e) => {
 addEventListener('keyup', (e) => apretadas.delete(e.code));
 addEventListener('blur', () => apretadas.clear());
 
+// Desafiar a un amigo: se arma una sala nueva, se comparte (o copia) el link y te quedás esperando ahí.
+function desafiar() {
+  partidaEnCurso = null;
+  volverAlMenu();
+  empezar('amigo');
+  evento({ t: 'comparte', que: 'sala' });
+  copiar(location.href, true);
+}
+
 // Otra: en la rankeada busca un partido nuevo; con amigos, revancha; contra la máquina, de nuevo.
 function revanchaAhora() {
   pintor.limpiarMarcas();
@@ -217,6 +226,7 @@ canvas.addEventListener('pointerdown', (e) => {
   else if (id === 'cuenta') abrirCuenta();
   else if (id === 'menu') volverAlMenu();
   else if (id === 'otra') revanchaAhora();
+  else if (id === 'desafiar') desafiar();
   else if (id === 'copiar') copiar(location.href, true);
   else if (id === 'respaldo') mostrarRespaldo = !mostrarRespaldo;
   else if (id === 'copiarRespaldo') copiar(codigoRespaldo(), false);

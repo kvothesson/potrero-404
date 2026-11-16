@@ -18,6 +18,7 @@ const TEXTOS = {
   pausa: { es: 'PAUSA', en: 'PAUSE', pt: 'PAUSA' },
   sonido: { es: 'SONIDO', en: 'SOUND', pt: 'SOM' },
   girar: { es: 'GIRÁ EL CELU PARA JUGAR MEJOR', en: 'TURN YOUR PHONE FOR A BETTER VIEW', pt: 'GIRE O CELULAR PARA JOGAR MELHOR' },
+  desafiar: { es: 'DESAFIAR', en: 'CHALLENGE', pt: 'DESAFIAR' },
   gana: { es: 'GANA EL PRIMERO EN HACER 3', en: 'FIRST TO 3 GOALS WINS', pt: 'VENCE QUEM FIZER 3 GOLS' },
 
   // panel de cuenta (HTML)

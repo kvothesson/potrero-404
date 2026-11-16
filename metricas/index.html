@@ -67,6 +67,13 @@
 const local = /^(localhost|127\.0\.0\.1|\[::1\])(:|$)/.test(location.host);
 const API = local ? `${location.protocol}//${location.host}` : 'https://potrero-404.kvothesson.workers.dev';
 const $ = (id) => document.getElementById(id);
+// la clave llega una vez en el link (#clave=...) y queda guardada en este navegador; el # no viaja al servidor
+let clave = '';
+try {
+  const h = new URLSearchParams(location.hash.slice(1)).get('clave');
+  if (h) { localStorage.setItem('potrero404.metricas', h); history.replaceState(null, '', location.pathname); }
+  clave = localStorage.getItem('potrero404.metricas') || '';
+} catch { /* sin almacenamiento */ }
 const fmt = (n) => Number(n || 0).toLocaleString('es-AR');
 const pct = (a, b) => (b ? `${Math.round((a / b) * 100)} %` : '–');
 
@@ -94,7 +101,9 @@ document.addEventListener('mousemove', (e) => {
 
 async function cargar() {
   const n = Number($('dias').value);
-  const r = await (await fetch(`${API}/metricas?dias=${n}`)).json();
+  const resp = await fetch(`${API}/metricas?dias=${n}`, { headers: { 'x-clave': clave } });
+  if (resp.status === 401) { document.querySelector('main').innerHTML = '<h1>Potrero 404 · Métricas</h1><p class="sub">Esta página es privada. Abrila con tu link con clave.</p>'; return; }
+  const r = await resp.json();
   const lista = dias(r.desde, n).map((dia) => ({ dia }));
   const porDia = Object.fromEntries(lista.map((d) => [d.dia, d]));
   const tot = {};

@@ -12,7 +12,7 @@ import { sumar, resumen } from './metricas.js';
 const ORIGENES = ['https://kvothesson.com'];
 export function cabecerasCors(req) {
   const o = req.headers.get('Origin');
-  const h = { 'access-control-allow-methods': 'GET, POST, OPTIONS', 'access-control-allow-headers': 'content-type', vary: 'Origin' };
+  const h = { 'access-control-allow-methods': 'GET, POST, OPTIONS', 'access-control-allow-headers': 'content-type, x-clave', vary: 'Origin' };
   if (o && (ORIGENES.includes(o) || /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(o))) h['access-control-allow-origin'] = o;
   return h;
 }
@@ -63,7 +63,11 @@ export async function api(req, { db, buscar, cuentas }) {
       await sumar(db, cuerpo);
       return new Response(null, { status: 204, headers: cabecerasCors(req) });
     }
-    if (url.pathname === '/metricas') return json(req, await resumen(db, Math.min(90, Number(url.searchParams.get('dias')) || 30)));
+    if (url.pathname === '/metricas') {
+      // solo con la clave (en la PC no hace falta)
+      if (cuentas?.metricas && req.headers.get('x-clave') !== cuentas.metricas) return json(req, { error: 'clave' }, 401);
+      return json(req, await resumen(db, Math.min(90, Number(url.searchParams.get('dias')) || 30)));
+    }
   } catch (e) {
     return json(req, { error: 'servidor' }, 500);
   }
