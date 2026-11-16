@@ -158,7 +158,7 @@ function formas(ya) {
   if (!abierto) return '<p>Muy pronto vas a poder entrar con Google o con tu mail.</p>';
   let h = '';
   if (GOOGLE_CLIENT_ID && !ya.includes('google')) h += '<div id="google" class="google"></div>';
-  if (!ya.includes('mail')) h += '<form id="fm"><input id="mail" type="email" autocomplete="email" placeholder="tu mail"><button>mandame un código</button></form>';
+  if (!ya.includes('mail')) h += '<form id="fm"><input id="mail" type="email" autocomplete="email" placeholder="tu mail"><div class="humano" style="flex-basis:100%"></div><button>mandame un código</button></form>';
   return h;
 }
 function pintarCuenta(paso = 'inicio', aviso = '', bien = false) {
@@ -207,7 +207,7 @@ function pintarCuenta(paso = 'inicio', aviso = '', bien = false) {
     e.preventDefault();
     const mail = document.getElementById('mail').value.trim();
     const b = fm.querySelector('button'); b.disabled = true;
-    const r = await post('/mail', { mail, humano: await pruebaHumano() });
+    const r = await post('/mail', { mail, humano: await pruebaHumano(fm.querySelector('.humano')) });
     b.disabled = false;
     if (r.error) { pintarCuenta('inicio', ERRORES[r.error] || ERRORES.servidor); return; }
     mailEnviado = mail; pintarCuenta('codigo');

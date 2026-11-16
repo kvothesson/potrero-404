@@ -1,4 +1,4 @@
-// Pide a Cloudflare Turnstile (invisible) una prueba de que no sos un bot, para pedir un código por mail.
+// Pide a Cloudflare Turnstile una prueba de que no sos un bot, para pedir un código por mail.
 // Devuelve el token, o '' en la PC (ahí el servidor local no lo pide).
 import { TURNSTILE_SITE_KEY } from './cuentas-config.js';
 
@@ -14,15 +14,22 @@ function cargar() {
   return cargando;
 }
 
-export async function pruebaHumano() {
+// lugar: el elemento donde aparece la casilla "no soy un robot" si Cloudflare tiene dudas
+// (casi siempre no aparece nada y pasa solo).
+export async function pruebaHumano(lugar) {
   if (local || !TURNSTILE_SITE_KEY) return '';
-  const ts = await cargar();
+  const ts = await cargar().catch(() => null);
+  if (!ts) return '';
   return new Promise((ok) => {
     const caja = document.createElement('div');
-    caja.style.cssText = 'position:fixed;left:-9999px;top:0';
-    document.body.appendChild(caja);
-    const fin = (t) => { try { ts.remove(id); } catch { /* ya no está */ } caja.remove(); ok(t || ''); };
-    const id = ts.render(caja, { sitekey: TURNSTILE_SITE_KEY, size: 'invisible', callback: fin, 'error-callback': () => fin(''), 'timeout-callback': () => fin('') });
-    setTimeout(() => fin(''), 15000);
+    (lugar || document.body).appendChild(caja);
+    let listo = false;
+    const fin = (t) => { if (listo) return; listo = true; try { ts.remove(id); } catch { /* ya no está */ } caja.remove(); ok(t || ''); };
+    const id = ts.render(caja, {
+      sitekey: TURNSTILE_SITE_KEY, appearance: 'interaction-only', size: 'flexible',
+      language: ({ pt: 'pt-br' })[document.documentElement.lang] || document.documentElement.lang || 'auto',
+      callback: fin, 'error-callback': () => { fin(''); return true; }, 'expired-callback': () => fin(''),
+    });
+    setTimeout(() => fin(''), 120000);   // si en dos minutos no se resolvió, se corta
   });
 }

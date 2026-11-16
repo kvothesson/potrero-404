@@ -58,7 +58,7 @@ export function crearCuenta({ api, obtenerYo, guardar, alCerrar }) {
         <button class="opcion" data-ir="nombre"><h3>${t('invitado')}</h3><p>${t('invitadoSub')}</p></button>`;
     } else if (paso === 'mail') {
       html += `<h2>${t('mailTitulo')}</h2><p>${t('mailSub')}</p>
-        <form id="f"><input id="v" type="email" autocomplete="email" placeholder="${t('mailEj')}" value="${esc(mail)}"><button class="btn verde">${t('mandar')}</button></form>
+        <form id="f"><input id="v" type="email" autocomplete="email" placeholder="${t('mailEj')}" value="${esc(mail)}"><div class="humano"></div><button class="btn verde">${t('mandar')}</button></form>
         <button class="volver" data-ir="${yo ? 'cuenta' : 'elegir'}">${t('volver')}</button>`;
     } else if (paso === 'codigo') {
       html += `<h2>${t('revisa')}</h2><p>${t('revisaSub', { mail: `<b>${esc(mail)}</b>` })}</p>
@@ -96,7 +96,7 @@ export function crearCuenta({ api, obtenerYo, guardar, alCerrar }) {
         const v = f.querySelector('input').value.trim();
         try {
           if (paso === 'mail') {
-            const r = await api('/mail', { mail: v, humano: await pruebaHumano() }).catch(() => ({ ok: false, datos: {} }));
+            const r = await api('/mail', { mail: v, humano: await pruebaHumano(f.querySelector('.humano')) }).catch(() => ({ ok: false, datos: {} }));
             if (r.ok) { mail = v; ir('codigo'); } else ir('mail', mensajeError(r));
           } else if (paso === 'codigo') {
             await entrar({ mail, codigo: v });
