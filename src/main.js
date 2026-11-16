@@ -51,9 +51,15 @@ function pedirTexto({ largo = 16, valor = '', alListo }) {
   setTimeout(() => campo.focus(), 30);
 }
 function cerrarTexto() { entrada.classList.add('oculto'); campo.blur(); alConfirmar = null; }
+// Un solo envío a la vez: dos toques seguidos en ✓ registraban el nombre dos veces.
+let enviando = false;
 entrada.addEventListener('submit', async (e) => {
   e.preventDefault();
-  if (alConfirmar && !(await alConfirmar(campo.value.trim()))) { entrada.classList.add('error'); setTimeout(() => entrada.classList.remove('error'), 500); }
+  if (enviando || !alConfirmar) return;
+  enviando = true; entrada.querySelector('button').disabled = true;
+  try {
+    if (!(await alConfirmar(campo.value.trim()))) { entrada.classList.add('error'); setTimeout(() => entrada.classList.remove('error'), 500); }
+  } finally { enviando = false; entrada.querySelector('button').disabled = false; }
 });
 
 function pedirNombre(despues) {

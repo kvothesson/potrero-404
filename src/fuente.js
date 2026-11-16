@@ -83,6 +83,8 @@ const ICONOS = {
   palanca: ['...www...', '..wwwww..', '..wwwww..', '...www...', '....g....', '....g....', '.ggggggg.', 'ggggggggg', '.ggggggg.'],
   teclado: ['.........', 'wwwwwwwww', 'w.w.w.w.w', 'wwwwwwwww', 'w.w.w.w.w', 'wwwwwwwww', 'w.wwwww.w', 'wwwwwwwww', '.........'],
   llave: ['.yyy.....', 'y...y....', 'y...yyyyy', 'y...y.y.y', '.yyy..y.y', '.........', '.........', '.........', '.........'],
+  persona: ['...ww....', '..wwww...', '..wwww...', '...ww....', '.wwwwww..', 'w.wwww.w.', '..wwww...', '..w..w...', '.ww..ww..'],
+  cadena: ['.........', 'wwww.....', 'w..w.....', 'w..wwww..', 'wwww..w..', '...w..w..', '...wwww..', '.........', '.........'],
   tilde: ['.........', '........w', '.......ww', '......ww.', 'w....ww..', 'ww..ww...', '.wwww....', '..ww.....', '.........'],
 };
 

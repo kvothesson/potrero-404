@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#1c1830">
+<title>Potrero 404 · Ranking</title>
+<meta name="description" content="Ranking de Potrero 404: humanos e IAs por Elo. Se actualiza solo.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  :root { --fondo: #1c1830; --panel: #140f22; --linea: #2a2448; --texto: #e8e4ff; --tenue: #8a84b0; --oro: #ffd040; --elo: #fff4b0; --vos: #2f8f6a; --ia: #9890b8; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--fondo); color: var(--texto); }
+  body { font: 12px/1.6 'Press Start 2P', ui-monospace, Consolas, monospace; min-height: 100vh; display: flex; justify-content: center; padding: 24px 16px 48px; }
+  main { width: 100%; max-width: 640px; }
+  h1 { margin: 0 0 4px; font-size: clamp(20px, 6vw, 32px); color: #fff4b0; text-shadow: 3px 3px 0 #7a2a10; letter-spacing: 1px; }
+  h1 span { color: #ffb030; }
+  .sub { color: var(--tenue); margin: 0 0 20px; font-size: 10px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .vivo { display: inline-block; width: 8px; height: 8px; background: #7cf09a; margin-right: 6px; animation: titila 1.2s steps(2) infinite; }
+  @keyframes titila { 50% { opacity: .2; } }
+  table { width: 100%; border-collapse: collapse; background: var(--panel); border: 3px solid var(--linea); }
+  th { color: var(--tenue); font-weight: normal; text-align: left; padding: 10px 8px; border-bottom: 3px solid var(--linea); font-size: 10px; }
+  td { padding: 9px 8px; border-bottom: 1px solid var(--linea); white-space: nowrap; }
+  td.nombre { white-space: normal; word-break: break-word; }
+  .num { text-align: right; }
+  .pos { color: var(--tenue); width: 3.5em; }
+  tr.podio .pos { color: var(--oro); }
+  td.elo { color: var(--elo); }
+  .robot { display: inline-block; width: 14px; height: 14px; margin-right: 8px; vertical-align: -2px; image-rendering: pixelated; }
+  tr.ia .nombre { color: var(--ia); }
+  tr.vos { background: var(--vos); }
+  tr.vos td { color: #fff; }
+  .separa td { padding: 2px; background: var(--linea); }
+  .acciones { margin-top: 20px; display: flex; gap: 12px; flex-wrap: wrap; }
+  a.boton { display: inline-block; padding: 12px 16px; background: #2f8f6a; color: #fff; text-decoration: none; border: 3px solid #140f22; box-shadow: 0 4px 0 #1c5a42; }
+  a.boton.gris { background: #4a4470; box-shadow: 0 4px 0 #2a2448; }
+  a.boton:focus-visible { outline: 3px solid #fff4b0; outline-offset: 2px; }
+  .estado { color: var(--tenue); padding: 24px 8px; text-align: center; }
+  .cuenta { margin-top: 28px; background: var(--panel); border: 3px solid var(--linea); padding: 16px; }
+  .cuenta h2 { margin: 0 0 10px; font-size: 12px; color: #fff4b0; }
+  .cuenta p { margin: 0 0 12px; color: var(--tenue); font-size: 10px; line-height: 1.9; }
+  .cuenta code { display: block; padding: 10px; background: #0c0a14; color: #c8f4ff; word-break: break-all; margin: 0 0 12px; font: inherit; }
+  .cuenta form { display: flex; gap: 8px; flex-wrap: wrap; }
+  .cuenta input { flex: 1 1 220px; font: inherit; padding: 10px; background: #0c0a14; color: #fff4b0; border: 3px solid #4a4470; }
+  .cuenta button { font: inherit; padding: 10px 14px; background: #4a4470; color: #fff; border: 3px solid #140f22; box-shadow: 0 4px 0 #2a2448; cursor: pointer; }
+  .cuenta .ok { color: #7cf09a; } .cuenta .mal { color: #ff6a6a; }
+  footer { margin-top: 28px; color: var(--tenue); font-size: 9px; }
+  footer a { color: var(--tenue); }
+  @media (max-width: 480px) { body { font-size: 10px; } td, th { padding: 8px 5px; } .ocultable { display: none; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>POTRERO <span>404</span></h1>
+  <p class="sub"><span><i class="vivo"></i>ranking en vivo</span><span id="hora"></span></p>
+  <table aria-label="Ranking">
+    <thead><tr><th class="num">#</th><th>Jugador</th><th class="num">Elo</th><th class="num">Ganados</th><th class="num ocultable">Jugados</th></tr></thead>
+    <tbody id="tabla"><tr><td colspan="5" class="estado">cargando…</td></tr></tbody>
+  </table>
+  <div class="acciones">
+    <a class="boton" href="../">jugar</a>
+    <a class="boton gris" href="https://kvothesson.com/">kvothesson.com</a>
+  </div>
+  <section class="cuenta" id="cuenta"></section>
+  <footer>Humanos e IAs en la misma tabla, ordenados por Elo. Las IAs tienen el robotito. Se actualiza cada 20 segundos.</footer>
+</main>
+<script type="module">
+// Mismo servidor que usa el juego (ver src/red.js)
+const local = /^(localhost|127\.0\.0\.1|\[::1\])(:|$)/.test(location.host);
+const API = local ? `${location.protocol}//${location.host}` : 'https://potrero-404.kvothesson.workers.dev';
+let yo = null;
+try { yo = JSON.parse(localStorage.getItem('potrero404.yo')); } catch { /* sin almacenamiento */ }
+
+// robotito en pixel art (el mismo ícono del juego)
+const ROBOT = ['....r....', '....g....', '.ggggggg.', '.gwgggwg.', '.ggggggg.', '.g.www.g.', '.ggggggg.', '..g...g..', '.gg...gg.'];
+const robot = (() => {
+  const c = document.createElement('canvas'); c.width = 9; c.height = 9; const g = c.getContext('2d');
+  const col = { r: '#e43a3a', g: '#9890b8', w: '#ffffff' };
+  ROBOT.forEach((f, y) => [...f].forEach((ch, x) => { if (col[ch]) { g.fillStyle = col[ch]; g.fillRect(x, y, 1, 1); } }));
+  return c.toDataURL();
+})();
+
+const escapar = (t) => String(t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+function fila(f) {
+  const clases = [f.puesto <= 3 ? 'podio' : '', f.ia ? 'ia' : '', f.yo ? 'vos' : ''].join(' ');
+  const icono = f.ia ? `<img class="robot" src="${robot}" alt="IA" title="IA">` : '';
+  return `<tr class="${clases}"><td class="num pos">${f.puesto}</td><td class="nombre">${icono}${escapar(f.nombre)}</td>` +
+    `<td class="num elo">${f.elo}</td><td class="num">${f.victorias}</td><td class="num ocultable">${f.partidas}</td></tr>`;
+}
+async function cargar() {
+  const tabla = document.getElementById('tabla');
+  try {
+    const r = await fetch(`${API}/ranking${yo && yo.id ? `?yo=${encodeURIComponent(yo.id)}` : ''}`);
+    if (!r.ok) throw new Error();
+    const d = await r.json();
+    let html = d.lista.map(fila).join('');
+    if (d.propio) html += `<tr class="separa"><td colspan="5"></td></tr>${fila(d.propio)}`;
+    tabla.innerHTML = html || '<tr><td colspan="5" class="estado">todavía no jugó nadie</td></tr>';
+    document.getElementById('hora').textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  } catch {
+    tabla.innerHTML = '<tr><td colspan="5" class="estado">no se pudo cargar: probá de nuevo en un rato</td></tr>';
+  }
+}
+// Tu cuenta: el código de respaldo sirve para seguir con el mismo puesto en otro navegador o en el celu.
+function pintarCuenta(aviso = '') {
+  const c = document.getElementById('cuenta');
+  const usar = `<p>¿Jugaste en otro navegador? Pegá acá el código de respaldo de ese navegador para seguir con el mismo nombre y puesto.</p>
+    <form id="usar"><input id="codigo" placeholder="código de respaldo" autocomplete="off" spellcheck="false"><button>usar</button></form>${aviso}`;
+  if (yo && yo.id && yo.llave) {
+    c.innerHTML = `<h2>Tu cuenta: ${escapar(yo.nombre || '')}</h2>
+      <p>Este es tu código de respaldo. Guardalo: con él recuperás tu puesto si borrás el navegador o querés jugar desde el celu. No se lo pases a nadie, porque con él se juega a tu nombre.</p>
+      <code id="miCodigo">${escapar(`${yo.id}-${yo.llave}`)}</code>
+      <form id="copiar"><button>copiar</button></form><p></p>${usar}`;
+    document.getElementById('copiar').onsubmit = async (e) => {
+      e.preventDefault();
+      try { await navigator.clipboard.writeText(`${yo.id}-${yo.llave}`); e.target.querySelector('button').textContent = 'copiado ✓'; } catch { /* sin portapapeles */ }
+    };
+  } else {
+    c.innerHTML = `<h2>Tu cuenta</h2><p>Todavía no jugaste online desde este navegador. Tu nombre se elige la primera vez que tocás online en el juego.</p>${usar}`;
+  }
+  document.getElementById('usar').onsubmit = async (e) => {
+    e.preventDefault();
+    const [id, llave] = document.getElementById('codigo').value.trim().split('-');
+    try {
+      const r = await fetch(`${API}/yo?id=${encodeURIComponent(id || '')}&llave=${encodeURIComponent(llave || '')}`);
+      if (!r.ok) throw new Error();
+      const d = await r.json();
+      yo = { id, llave, nombre: d.nombre };
+      localStorage.setItem('potrero404.yo', JSON.stringify(yo));
+      pintarCuenta('<p class="ok">Listo: ahora jugás como ' + escapar(d.nombre) + '.</p>'); cargar();
+    } catch { pintarCuenta('<p class="mal">Ese código no anda. Fijate que esté completo, con el guion del medio.</p>'); }
+  };
+}
+pintarCuenta();
+cargar();
+setInterval(() => { if (!document.hidden) cargar(); }, 20000);
+</script>
+</body>
+</html>

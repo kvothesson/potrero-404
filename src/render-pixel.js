@@ -252,9 +252,12 @@ export function crearPintor(canvas, opciones = {}) {
 
   function ajustar() {
     const dpr = window.devicePixelRatio || 1;
-    const k = Math.max(1, Math.floor(Math.min(window.innerWidth * dpr / BW, window.innerHeight * dpr / BH)));
+    const cabe = Math.min(window.innerWidth * dpr / BW, window.innerHeight * dpr / BH);
+    const k = Math.max(1, Math.floor(cabe));
     canvas.width = BW * k; canvas.height = BH * k;
-    canvas.style.width = `${BW * k / dpr}px`; canvas.style.height = `${BH * k / dpr}px`;
+    // escala entera para que los píxeles queden nítidos; si la ventana es más chica que el juego, se achica igual
+    const css = cabe < 1 ? cabe : k;
+    canvas.style.width = `${BW * css / dpr}px`; canvas.style.height = `${BH * css / dpr}px`;
     ctx.imageSmoothingEnabled = false;
   }
   ajustar();
@@ -309,6 +312,46 @@ export function crearPintor(canvas, opciones = {}) {
         b.fillRect(x - 3, y - 1, 7, 3); b.fillRect(x - 2, y - 2, 5, 5);
         const brillo = ['#7a4cc0', '#3fb8a0', '#c060a0', '#4a7ad0'][((t >> 3) + Math.round(p.x)) % 4];
         b.fillStyle = brillo; b.fillRect(x - 1 + ((t >> 4) % 2), y - 1, 2, 1);
+      }
+    }
+  }
+
+  // El aceite brilla en la noche (se dibuja después de la oscuridad, como la Luz Mala):
+  // los tambores con la tapa encendida en naranja y un halo que late; los charcos con un aro
+  // tornasol. Así se ven de lejos.
+  function aceiteBrillo(s) {
+    const t = s.cuadro;
+    b.globalCompositeOperation = 'lighter';
+    for (const p of s.pastillas) {
+      if (!p.activa) continue;
+      const x = Math.round(bx(p.x)), y = Math.round(by(p.y)), grande = p.poder > 50;
+      const late = 0.5 + 0.5 * Math.sin(t / 9 + p.x);
+      if (grande) {
+        b.fillStyle = `rgba(255,140,30,${0.18 + 0.14 * late})`; b.beginPath(); b.arc(x, y - 2, 13 + late * 2, 0, Math.PI * 2); b.fill();
+        b.fillStyle = `rgba(255,170,60,${0.3 + 0.2 * late})`; b.beginPath(); b.arc(x, y - 3, 7, 0, Math.PI * 2); b.fill();
+      } else {
+        b.fillStyle = `rgba(120,80,220,${0.16 + 0.14 * late})`; b.beginPath(); b.arc(x, y, 7 + late, 0, Math.PI * 2); b.fill();
+      }
+    }
+    b.globalCompositeOperation = 'source-over';
+    for (const p of s.pastillas) {
+      if (!p.activa) continue;
+      const x = Math.round(bx(p.x)), y = Math.round(by(p.y)), grande = p.poder > 50;
+      if (grande) {
+        // tapa encendida y chispas que suben
+        b.fillStyle = '#ffb030'; b.fillRect(x - 4, y - 5, 9, 2);
+        b.fillStyle = '#fff4b0'; b.fillRect(x - 2, y - 5, 5, 1);
+        for (let k = 0; k < 3; k++) {
+          const f = (t + k * 17 + x) % 40;
+          b.fillStyle = f < 20 ? '#ffd040' : '#e07818';
+          b.fillRect(x - 3 + ((k * 3 + (t >> 4)) % 7), y - 7 - (f >> 2), 1, 1);
+        }
+      } else {
+        // aro tornasol alrededor del charco
+        const col = ['#b06cff', '#3fe0c0', '#ff70c0', '#6aa8ff'][((t >> 3) + Math.round(p.x)) % 4];
+        b.fillStyle = col;
+        b.fillRect(x - 4, y - 1, 1, 3); b.fillRect(x + 4, y - 1, 1, 3); b.fillRect(x - 1, y - 4, 3, 1); b.fillRect(x - 1, y + 3, 3, 1);
+        b.fillRect(x - 3, y - 3, 1, 1); b.fillRect(x + 3, y - 3, 1, 1); b.fillRect(x - 3, y + 2, 1, 1); b.fillRect(x + 3, y + 2, 1, 1);
       }
     }
   }
@@ -413,6 +456,11 @@ export function crearPintor(canvas, opciones = {}) {
       b.fillStyle = '#c8a040'; b.fillRect(Math.round(px(k.x)) - 1, k.estado === 'pasa' ? Math.round(py(k.y)) - 3 : (k.dir > 0 ? y0 : y0 + rh - 6), 3, 6);
     }
     s.autos.forEach((c, i) => { if (c.aplastado) return; b.fillStyle = i === seguir ? '#ffffff' : COLOR_AUTO[i].techo; b.fillRect(Math.round(px(c.x)) - 1, Math.round(py(c.y)) - 1, 2, 2); });
+    for (const p of s.pastillas) {
+      if (!p.activa) continue;
+      b.fillStyle = p.poder > 50 ? '#ffb030' : '#7a5ab0';
+      b.fillRect(Math.round(px(p.x)), Math.round(py(p.y)), p.poder > 50 ? 2 : 1, p.poder > 50 ? 2 : 1);
+    }
     b.fillStyle = '#b4ffd0'; b.fillRect(Math.round(px(s.pelota.x)), Math.round(py(s.pelota.y)), 1, 1);
   }
 
@@ -454,7 +502,7 @@ export function crearPintor(canvas, opciones = {}) {
       }
       if (c.nitroActivo) aro(x - co * 14, y - si * 14, 10, 0.5);
     }
-    for (const p of s.pastillas) if (p.activa && p.poder > 50) aro(bx(p.x), by(p.y), 8, 0.25);
+    for (const p of s.pastillas) if (p.activa) aro(bx(p.x), by(p.y), p.poder > 50 ? 16 : 9, p.poder > 50 ? 0.35 : 0.25);
     b.drawImage(oscuro, cam.x, cam.y);
     // brillo verde de la Luz Mala sobre lo que ilumina
     b.globalCompositeOperation = 'lighter';
@@ -663,21 +711,6 @@ export function crearPintor(canvas, opciones = {}) {
       filas.forEach((f, k) => fila(f, 52 + k * 15));
       if (d.propio) { b.fillStyle = '#5a5480'; b.fillRect(20, 52 + 14 * 15 + 2, BW - 40, 1); fila(d.propio, 52 + 15 * 15); }
     }
-    // tu código de respaldo: con él recuperás tu puesto en otro navegador
-    const y = BH - 92;
-    if (extra.yo) {
-      boton('respaldo', 14, y, 40, 22, GRIS, (x, yy) => { icono(b, 'llave', x + 6, yy + 6); icono(b, 'copiar', x + 22, yy + 6); });
-      if (extra.mostrarRespaldo) {
-        b.fillStyle = '#140f22'; b.fillRect(60, y - 2, BW - 74, 26);
-        const c = extra.respaldo;
-        texto(b, c.slice(0, 18), 66, y + 2, { color: '#c8f4ff', sombra: null });
-        texto(b, c.slice(18), 66, y + 12, { color: '#c8f4ff', sombra: null });
-        boton('copiarRespaldo', BW - 40, y, 24, 22, GRIS, (x, yy) => icono(b, copiado > 0 ? 'tilde' : 'copiar', x + 7, yy + 6));
-        if (copiado > 0) copiado--;
-      }
-    }
-    // pegar un código de respaldo
-    boton('restaurar', 14, y + 34, 40, 22, GRIS, (x, yy) => { icono(b, 'llave', x + 6, yy + 6); icono(b, 'flecha', x + 22, yy + 6); });
     boton('menu', 8, BH - 28, 24, 20, GRIS, (x, yy) => icono(b, 'casa', x + 7, yy + 5));
   }
 
@@ -752,9 +785,11 @@ export function crearPintor(canvas, opciones = {}) {
     const w = 78, sep = 8, total = modos.length * w + (modos.length - 1) * sep;
     modos.forEach(([id, col], k) => {
       boton(id, BW / 2 - total / 2 + k * (w + sep), 290, w, 52, col, (x, y) => {
-        if (id === 'bot') { autoChico(0, x + 22, y + 26, 0); icono(b, 'robot', x + 42, y + 12, 3); }
-        if (id === 'online') { icono(b, 'globo', x + 8, y + 10, 3); icono(b, 'trofeo', x + 42, y + 12, 3); }
-        if (id === 'amigo') { autoChico(0, x + 18, y + 26, 0); autoChico(1, x + 60, y + 26, ANGULOS / 2); icono(b, 'copiar', x + 30, y + 18, 2); }
+        // VOS contra: la máquina / alguien del mundo (y suma al ranking) / un amigo con un link
+        const vs = (yy) => texto(b, 'VS', x + w / 2, yy, { alinear: 'centro', color: '#fff4b0', sombra: P.contorno });
+        if (id === 'bot') { autoChico(0, x + 16, y + 22, ANGULOS * 3 / 4); vs(y + 19); icono(b, 'robot', x + 50, y + 8, 3); }
+        if (id === 'online') { autoChico(0, x + 16, y + 22, ANGULOS * 3 / 4); vs(y + 19); icono(b, 'persona', x + 50, y + 6, 2); icono(b, 'globo', x + 52, y + 26, 2); icono(b, 'trofeo', x + 4, y + 40); }
+        if (id === 'amigo') { icono(b, 'persona', x + 6, y + 8, 3); icono(b, 'cadena', x + 33, y + 16, 2); icono(b, 'persona', x + 48, y + 8, 3); }
         if (!extra.tactil) tecla(b, String(k + 1), x + w - 16, y - 7);
       });
     });
@@ -871,6 +906,7 @@ export function crearPintor(canvas, opciones = {}) {
     if (cancha.noche) {
       noche(s);
       if (cancha.pixelesMuertos) pixelesMuertos(s);     // negro puro: ni la luz los alcanza
+      if (cancha.nitro === 'aceite') aceiteBrillo(s);   // el aceite brilla en la oscuridad
       pelota(s.pelota);                                  // la Luz Mala no se apaga con la noche
       if (hombres.length) hombresTanque(s, true);         // los ojos brillan en lo oscuro
     }
