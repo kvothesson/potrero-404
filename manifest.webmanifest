@@ -1,0 +1,20 @@
+{
+  "name": "Potrero 404 · Fútbol con autos",
+  "short_name": "Potrero 404",
+  "description": "Fútbol con autos online y gratis: contra la máquina, online con ranking o con un amigo por link.",
+  "id": "/potrero-404/",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "any",
+  "background_color": "#1c1830",
+  "theme_color": "#1c1830",
+  "lang": "es",
+  "categories": ["games", "sports"],
+  "icons": [
+    { "src": "iconos/icono-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "iconos/icono-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "iconos/icono-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

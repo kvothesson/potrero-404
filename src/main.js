@@ -259,6 +259,7 @@ canvas.addEventListener('pointerdown', (e) => {
   else if (id === 'menu') volverAlMenu();
   else if (id === 'otra') revanchaAhora();
   else if (id === 'desafiar') desafiar();
+  else if (id === 'instalar') instalar();
   else if (id === 'copiar') copiar(location.href, true);
   else if (id === 'respaldo') mostrarRespaldo = !mostrarRespaldo;
   else if (id === 'copiarRespaldo') copiar(codigoRespaldo(), false);
@@ -304,7 +305,7 @@ function extras() {
   return {
     pantalla: pantalla === 'amigo' ? 'online' : pantalla,
     intro: pantalla === 'intro' ? (() => { const t = (performance.now() - introDesde) / 1000; return t < LOGO_S ? { fase: 'logo', t } : { fase: 'trailer', t: t - LOGO_S }; })() : null, rankeada: pantalla === 'online', pausa, tactil: !!tactil, seguir: aQuienSigo(),
-    yo, ranking, mostrarRespaldo, respaldo: codigoRespaldo(), camPelota, sonido: sonido.prendido(),
+    yo, ranking, mostrarRespaldo, respaldo: codigoRespaldo(), camPelota, sonido: sonido.prendido(), instalable: !!instalable,
     red: red && { lado: red.lado, jugadores: red.jugadores, codigo: red.codigo, caido: red.caido, conectado: red.conectado, ping: red.ping,
       listo: !!red.estado, nombres: red.nombres, elo: red.elo, rankeada: pantalla === 'online' },
   };
@@ -344,6 +345,18 @@ function cuadro(ahora) {
   sonido.motores(!jugando || pausa || !s ? null : s);
   pintor.dibujar(s || estado, extras());
   requestAnimationFrame(cuadro);
+}
+// Instalable como app: el archivo sw.js guarda una copia para jugar sin internet y se actualiza solo.
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+// En Android y en la compu el navegador avisa que se puede instalar: se muestra un botón discreto en la portada.
+let instalable = null;
+addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); instalable = e; });
+addEventListener('appinstalled', () => { instalable = null; evento({ t: 'comparte', que: 'instalada' }); });
+async function instalar() {
+  if (!instalable) return;
+  instalable.prompt();
+  await instalable.userChoice.catch(() => null);
+  instalable = null;
 }
 if (quiereIntro()) empezarIntro();
 requestAnimationFrame(cuadro);

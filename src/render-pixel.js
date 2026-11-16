@@ -899,6 +899,14 @@ export function crearPintor(canvas, opciones = {}) {
       texto(b, t('ranking'), x + 17, yy + 5, { color: '#fff' });
       if (!extra.tactil) tecla(b, '4', x + rw - 6, yy - 9);
     });
+    // instalar como app: solo si el navegador lo ofrece (Android, compu), abajo a la izquierda
+    if (extra.instalable) {
+      const iw = 22 + t('instalar').length * 6;
+      boton('instalar', 6, BH - 26, iw, 18, { cuerpo: '#4a4a9a', lado: '#2a2a62' }, (x, yy) => {
+        b.fillStyle = '#fff'; b.fillRect(x + 8, yy + 4, 2, 7); b.fillRect(x + 6, yy + 9, 6, 1); b.fillRect(x + 7, yy + 10, 4, 1); b.fillRect(x + 5, yy + 13, 8, 1);
+        texto(b, t('instalar'), x + 17, yy + 5, { color: '#fff' });
+      });
+    }
     // sonido: verde prendido; gris y tachado apagado
     const sw = 22 + t('sonido').length * 6;
     boton('sonido', BW - sw - 6, BH - 26, sw, 18, extra.sonido ? { cuerpo: '#2f8f6a', lado: '#1c5a42' } : GRIS, (x, yy) => {

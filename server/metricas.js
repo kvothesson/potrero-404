@@ -36,7 +36,7 @@ export function clave(e) {
     }
     case 'abandono': { const m = de(MODOS, e.modo); return m ? `abandono:${m}` : null; }
     case 'cuenta': { const c = de(['invitado', 'google', 'mail'], e.con); return c ? `cuenta:${c}` : null; }
-    case 'comparte': { const q = de(['sala', 'resultado'], e.que); return q ? `comparte:${q}` : null; }
+    case 'comparte': { const q = de(['sala', 'resultado', 'instalada'], e.que); return q ? `comparte:${q}` : null; }
     default: return null;
   }
 }

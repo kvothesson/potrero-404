@@ -26,6 +26,7 @@ const TEXTOS = {
   intro3: { es: 'NITRO · DERRAPE · SALTO', en: 'NITRO · DRIFT · JUMP', pt: 'NITRO · DERRAPAR · PULO' },
   intro4: { es: 'CUIDADO CON EL CAMIÓN', en: 'WATCH OUT FOR THE TRUCK', pt: 'CUIDADO COM O CAMINHÃO' },
   intro5: { es: 'ONLINE · GRATIS · SIN INSTALAR', en: 'ONLINE · FREE · NO INSTALL', pt: 'ONLINE · GRÁTIS · SEM INSTALAR' },
+  instalar: { es: 'INSTALAR', en: 'INSTALL', pt: 'INSTALAR' },
   gana: { es: 'GANA EL PRIMERO EN HACER 3', en: 'FIRST TO 3 GOALS WINS', pt: 'VENCE QUEM FIZER 3 GOLS' },
 
   // panel de cuenta (HTML)

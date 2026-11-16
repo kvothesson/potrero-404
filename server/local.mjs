@@ -18,7 +18,7 @@ const RAIZ = fileURLToPath(new URL('..', import.meta.url));
 const PUERTO = Number(process.env.PORT || 5421);
 const LAG = Number(process.env.LAG || 0);
 const TIPOS = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
-  '.png': 'image/png', '.gif': 'image/gif', '.json': 'application/json', '.svg': 'image/svg+xml', '.ico': 'image/x-icon' };
+  '.png': 'image/png', '.gif': 'image/gif', '.json': 'application/json', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json' };
 
 // Base local con la misma interfaz que D1 en Cloudflare.
 await mkdir(fileURLToPath(new URL('./datos/', import.meta.url)), { recursive: true });
