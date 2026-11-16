@@ -1,5 +1,5 @@
 // Pintor en pixel art con aspecto de Super Nintendo: todo se dibuja en un buffer chico
-// (272x400) con paleta limitada, contornos de 1 píxel y vista de tres cuartos, y después
+// (272x400 parado, más ancho acostado) con paleta limitada, contornos de 1 píxel y vista de tres cuartos, y después
 // se agranda a escala entera sin suavizado. Solo lee el estado; nunca lo cambia.
 import { t } from './idioma.js';
 import { W, H, CAMPO, AUTOS, GOLES_PARA_GANAR, FPS, paredes } from './sim.js';
@@ -8,12 +8,25 @@ import { CANCHAS, hash } from './canchas.js';
 // Sin palabras en pantalla: todo se dice con colores, números, íconos y teclas dibujadas,
 // para que se entienda en cualquier idioma.
 
-// BW×BH es lo que se ve en pantalla. El mundo (WW×WH) es más grande: la cancha más el
-// escenario de los costados, y la cámara sigue a tu auto.
-const BW = 272, BH = 400, K = 0.5;
+// BW×BH es lo que se ve en pantalla y depende de la ventana: parado 272×400; acostado (compu o
+// celu de costado) unos 256 de alto, ajustado para llenar la pantalla, y el ancho que pida (360 a 500).
+// El mundo (WW×WH) es más grande: la cancha más el escenario de los costados, y la cámara sigue a tu auto.
+let BW = 272, BH = 400;
+const K = 0.5;
+function medidas() {
+  const a = window.innerWidth / Math.max(1, window.innerHeight);
+  if (a <= 1.15) return [272, 400];
+  // acostado: un alto cercano a 256 que entre justo en la pantalla con escala entera, así ocupa todo el alto
+  const dpr = window.devicePixelRatio || 1, alto = window.innerHeight * dpr, ancho = window.innerWidth * dpr;
+  const k = Math.max(1, Math.round(alto / 256));
+  const bh = Math.max(224, Math.min(300, Math.floor(alto / k)));
+  const bw = Math.max(360, Math.min(500, Math.floor(ancho / k)));
+  return [bw, bh];
+}
 // La cámara gira (como el Mode 7 de la Super Nintendo): el mundo se dibuja en un cuadrado VW×VW
 // centrado en tu auto y después se pega girado en la pantalla, con tu auto siempre mirando arriba.
-const VW = 580, ANCLA_Y = Math.round(BH * 0.64);
+const VW = 640;
+const anclaY = () => Math.round(BH * (BW > BH ? 0.66 : 0.64));
 const OX = 70, OY = 60;                                     // margen de escenario alrededor de la cancha
 const WW = Math.round(W * K) + OX * 2, WH = Math.round(H * K) + OY * 2;
 const bx = (x) => OX + x * K, by = (y) => OY + y * K;
@@ -252,6 +265,8 @@ export function crearPintor(canvas, opciones = {}) {
   let festejo = 0, quienFesteja = -1, temblor = 0;
 
   function ajustar() {
+    [BW, BH] = medidas();
+    if (buf.width !== BW || buf.height !== BH) { buf.width = BW; buf.height = BH; }
     const dpr = window.devicePixelRatio || 1;
     const cabe = Math.min(window.innerWidth * dpr / BW, window.innerHeight * dpr / BH);
     const k = Math.max(1, Math.floor(cabe));
@@ -694,12 +709,14 @@ export function crearPintor(canvas, opciones = {}) {
   // Ranking: humanos e IAs mezclados por Elo. Las IAs llevan un robotito; vos estás resaltado.
   function pantallaRanking(extra) {
     b.fillStyle = 'rgba(20,15,34,.9)'; b.fillRect(0, 0, BW, BH);
-    icono(b, 'trofeo', BW / 2 - 18, 8, 4);
+    if (BW > BH) icono(b, 'trofeo', BW / 2 - 9, 8, 2); else icono(b, 'trofeo', BW / 2 - 18, 8, 4);
     const d = extra.ranking;
     if (!d) { const t = (Date.now() / 140 | 0) % 8; for (let k = 0; k < 8; k++) { b.fillStyle = k === t ? '#fff4b0' : '#3a3456'; b.fillRect(BW / 2 - 30 + k * 8, 120, 5, 5); } }
     else if (d.error) { icono(b, 'globo', BW / 2 - 18, 110, 4); icono(b, 'cruz', BW / 2 - 18, 110, 4); }
     else {
-      const filas = d.lista.slice(0, 14);
+      // cuántas filas entran: parado 14, acostado menos (dejando lugar a tu fila y al botón de volver)
+      const y0 = BW > BH ? 40 : 52, entran = Math.max(5, Math.floor((BH - y0 - 58) / 15));
+      const filas = d.lista.slice(0, entran);
       const fila = (f, y) => {
         if (f.yo) { b.fillStyle = '#3a6a5a'; b.fillRect(8, y - 3, BW - 16, 13); }
         texto(b, f.puesto, 30, y, { alinear: 'der', color: f.puesto <= 3 ? '#ffd040' : '#9890c0' });
@@ -709,8 +726,9 @@ export function crearPintor(canvas, opciones = {}) {
         icono(b, 'trofeo', BW - 52, y - 1);
         texto(b, `${f.victorias}/${f.partidas}`, BW - 12, y, { alinear: 'der', color: '#9890c0' });
       };
-      filas.forEach((f, k) => fila(f, 52 + k * 15));
-      if (d.propio) { b.fillStyle = '#5a5480'; b.fillRect(20, 52 + 14 * 15 + 2, BW - 40, 1); fila(d.propio, 52 + 15 * 15); }
+      filas.forEach((f, k) => fila(f, y0 + k * 15));
+      const propio = d.propio || (d.lista.slice(entran).find((f) => f.yo));
+      if (propio) { b.fillStyle = '#5a5480'; b.fillRect(20, y0 + entran * 15 + 2, BW - 40, 1); fila(propio, y0 + (entran + 1) * 15); }
     }
     boton('menu', 8, BH - 28, 24, 20, GRIS, (x, yy) => icono(b, 'casa', x + 7, yy + 5));
   }
@@ -878,7 +896,7 @@ export function crearPintor(canvas, opciones = {}) {
   const cam = { x: 0, y: 0, cx: WW / 2, cy: WH / 2, ang: 0, ancla: BH / 2 };
   function moverCamara(s, extra) {
     const c = extra.seguir >= 0 ? s.autos[extra.seguir] : null;
-    let tx, ty, angObj = cam.ang, suave = 0.25, ancla = ANCLA_Y;
+    let tx, ty, angObj = cam.ang, suave = 0.25, ancla = anclaY();
     if (extra.pantalla === 'menu' || !c) { tx = bx(s.pelota.x); ty = by(s.pelota.y); angObj = 0; suave = 0.04; ancla = BH / 2; }
     else {
       tx = bx(c.x); ty = by(c.y);
@@ -889,7 +907,7 @@ export function crearPintor(canvas, opciones = {}) {
       else if (!c.aplastado) angObj = -(c.rot + 90) * Math.PI / 180;
       if (c.aplastado) suave = 0.05;
       // como la "rigidez" de Rocket League: cuanto más rápido, más abajo el auto y más se ve adelante
-      ancla = ANCLA_Y + Math.min(1, Math.abs(c.vel || 0) / 9) * BH * 0.1;
+      ancla = anclaY() + Math.min(1, Math.abs(c.vel || 0) / 9) * BH * 0.1;
     }
     if (s.fase === 'cuenta' && s.reloj > 150) suave = 0.6;      // al reubicar, la cámara salta rápido
     cam.cx += (tx - cam.cx) * suave; cam.cy += (ty - cam.cy) * suave;
