@@ -216,6 +216,19 @@ function fondoFijo(cancha) {
   }
   g.putImageData(img, 0, 0);
   if (cancha.decorar) cancha.decorar(g, info);
+  // cada mitad, tenue, del color de quien la defiende (arriba el azul, abajo el rojo), para saber dónde estás
+  g.save();
+  g.beginPath(); poly.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.closePath(); g.clip();
+  const tinte = (hex, a) => { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`; };
+  g.fillStyle = tinte(COLOR_AUTO[0].cuerpo, 0.14); g.fillRect(0, 0, WW, Math.round(cy));
+  g.fillStyle = tinte(COLOR_AUTO[1].cuerpo, 0.14); g.fillRect(0, Math.round(cy) + 1, WW, WH);
+  // las líneas del área de cada arco, en el color de su equipo
+  [[T, HT, COLOR_AUTO[0].cuerpo], [HB, B, COLOR_AUTO[1].cuerpo]].forEach(([y0, y1, col]) => {
+    g.fillStyle = col;
+    g.fillRect(X0, Math.round(y0), 1, Math.round(y1 - y0)); g.fillRect(X1, Math.round(y0), 1, Math.round(y1 - y0));
+    g.fillRect(X0, y0 === T ? HT : HB, X1 - X0 + 1, 1);
+  });
+  g.restore();
   // palos con el color de quien defiende
   [[T, COLOR_AUTO[0]], [B, COLOR_AUTO[1]]].forEach(([y, col]) => {
     [g0, g1].forEach((x) => { g.fillStyle = P.contorno; g.fillRect(Math.round(x) - 2, Math.round(y) - 2, 5, 5); g.fillStyle = col.cuerpo; g.fillRect(Math.round(x) - 1, Math.round(y) - 1, 3, 3); });
@@ -957,8 +970,8 @@ export function crearPintor(canvas, opciones = {}) {
     cam.ancla += (ancla - cam.ancla) * 0.1;
     cam.x = Math.round(cam.cx - VW / 2); cam.y = Math.round(cam.cy - VW / 2);
   }
-  // Referencias en el borde de la pantalla cuando algo queda afuera:
-  // la Luz Mala (siempre) y, más tenue, el arco al que tenés que patear (del color del rival).
+  // Referencia en el borde de la pantalla cuando la Luz Mala queda afuera.
+  // (De qué lado estás lo dice el piso: cada mitad tiene el color de quien la defiende.)
   function alBorde(px, py, m, arriba) {
     const cx = BW / 2, cy = cam.ancla, dx = px - cx, dy = py - cy;
     if (px >= m && px <= BW - m && py >= arriba && py <= BH - m) return null;
@@ -976,25 +989,8 @@ export function crearPintor(canvas, opciones = {}) {
   }
   function indicadores(s, seguir) {
     if (seguir < 0 || !s.autos[seguir]) return;
-    // el arco que atacás: el azul patea al de abajo, el rojo al de arriba
-    const arcoY = seguir === 0 ? CAMPO.B + CAMPO.arcoFondo / 2 : CAMPO.T - CAMPO.arcoFondo / 2;
-    const ga = aPantalla(bx(W / 2), by(arcoY));
-    const e = alBorde(ga.x, ga.y, 16, 30);
     const pb = aPantalla(bx(s.pelota.x), by(s.pelota.y));
     const eb = alBorde(pb.x, pb.y, 12, 30);
-    // si la pelota y el arco quedan para el mismo lado, alcanza con la pelota
-    if (e && !(eb && Math.hypot(e.x - eb.x, e.y - eb.y) < 18)) {
-      b.globalAlpha = 0.55;
-      const col = COLOR_AUTO[1 - seguir].cuerpo;
-      // un arquito: travesaño y dos palos, y una flechita hacia afuera
-      const x = Math.round(e.x), y = Math.round(e.y);
-      b.fillStyle = P.contorno; b.fillRect(x - 6, y - 4, 13, 9);
-      b.fillStyle = col; b.fillRect(x - 5, y - 3, 11, 2); b.fillRect(x - 5, y - 3, 2, 7); b.fillRect(x + 4, y - 3, 2, 7);
-      b.fillStyle = 'rgba(255,255,255,.35)'; for (let k = -3; k <= 3; k += 2) b.fillRect(x + k, y, 1, 3);
-      flechita(x + Math.cos(e.ang) * 9, y + Math.sin(e.ang) * 9, e.ang, col, 4);
-      b.globalAlpha = 1;
-    }
-    // la Luz Mala: su dibujo en el borde, con una flecha, latiendo más rápido cuanto más cerca
     if (eb) {
       const late = 0.75 + 0.25 * Math.sin(s.cuadro * (0.12 + 0.25 * Math.max(0, 1 - eb.dist / 600)));
       b.globalAlpha = late;
