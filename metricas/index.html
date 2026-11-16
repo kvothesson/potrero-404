@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#1c1830">
+<title>Potrero 404 · Métricas</title>
+<style>
+  :root { --fondo: #1c1830; --panel: #140f22; --linea: #2a2448; --texto: #e8e4ff; --tenue: #9890b8; --nuevo: #ffb030; --vuelve: #7cf09a; --bot: #9890b8; --online: #2f8f6a; --amigo: #6a6ad0; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--fondo); color: var(--texto); }
+  body { font: 15px/1.5 system-ui, -apple-system, Segoe UI, sans-serif; padding: 24px 16px 48px; display: flex; justify-content: center; }
+  main { width: 100%; max-width: 860px; }
+  h1 { margin: 0; font-size: 24px; color: #fff4b0; }
+  h2 { margin: 28px 0 10px; font-size: 16px; color: #fff4b0; font-weight: 600; }
+  .sub { color: var(--tenue); margin: 4px 0 18px; font-size: 13px; }
+  .sub select { background: var(--panel); color: var(--texto); border: 1px solid var(--linea); border-radius: 4px; padding: 3px 6px; font: inherit; }
+  .tarjetas { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .tarjeta { background: var(--panel); border: 1px solid var(--linea); border-radius: 6px; padding: 12px 14px; }
+  .tarjeta .et { color: var(--tenue); font-size: 12px; }
+  .tarjeta .num { font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .tarjeta .det { color: var(--tenue); font-size: 12px; }
+  .grafico { background: var(--panel); border: 1px solid var(--linea); border-radius: 6px; padding: 14px 12px 8px; }
+  .barras { display: flex; align-items: flex-end; gap: 2px; height: 160px; }
+  .dia { flex: 1; display: flex; flex-direction: column-reverse; min-width: 4px; height: 100%; position: relative; }
+  .dia span { display: block; width: 100%; }
+  .dia:hover { outline: 1px solid var(--tenue); }
+  .ejes { display: flex; justify-content: space-between; color: var(--tenue); font-size: 11px; margin-top: 6px; }
+  .leyenda { display: flex; gap: 14px; flex-wrap: wrap; color: var(--tenue); font-size: 12px; margin-top: 8px; }
+  .leyenda i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+  table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--linea); border-radius: 6px; overflow: hidden; }
+  th, td { padding: 8px 10px; border-bottom: 1px solid var(--linea); text-align: right; font-variant-numeric: tabular-nums; }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: var(--tenue); font-weight: 500; font-size: 13px; }
+  .nota { color: var(--tenue); font-size: 12px; margin-top: 24px; }
+  #tip { position: fixed; pointer-events: none; background: #0c0a14; border: 1px solid var(--linea); padding: 6px 8px; border-radius: 4px; font-size: 12px; display: none; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Potrero 404 · Métricas</h1>
+  <p class="sub">Contadores por día, sin datos de nadie. Últimos <select id="dias"><option>7</option><option selected>30</option><option>90</option></select> días · <span id="hora"></span></p>
+  <section class="tarjetas" id="tarjetas"></section>
+
+  <h2>Visitas por día</h2>
+  <div class="grafico"><div class="barras" id="gVisitas"></div><div class="ejes" id="eVisitas"></div>
+    <div class="leyenda"><span><i style="background:var(--nuevo)"></i>primera vez</span><span><i style="background:var(--vuelve)"></i>vuelven otro día</span></div></div>
+
+  <h2>Partidos que empiezan, por día</h2>
+  <div class="grafico"><div class="barras" id="gPartidas"></div><div class="ejes" id="ePartidas"></div>
+    <div class="leyenda"><span><i style="background:var(--bot)"></i>práctica</span><span><i style="background:var(--online)"></i>online</span><span><i style="background:var(--amigo)"></i>con un amigo</span></div></div>
+
+  <h2>Por modo</h2>
+  <table id="tModos"></table>
+
+  <h2>Quiénes vuelven</h2>
+  <table id="tVuelta"></table>
+
+  <h2>Desde dónde</h2>
+  <table id="tDesde"></table>
+
+  <p class="nota">Cada navegador solo recuerda la fecha de su primera visita para poder decir "vuelve a los N días"; esa fecha no se manda. Los partidos online y los jugadores salen del ranking.</p>
+</main>
+<div id="tip"></div>
+<script type="module">
+const local = /^(localhost|127\.0\.0\.1|\[::1\])(:|$)/.test(location.host);
+const API = local ? `${location.protocol}//${location.host}` : 'https://potrero-404.kvothesson.workers.dev';
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => Number(n || 0).toLocaleString('es-AR');
+const pct = (a, b) => (b ? `${Math.round((a / b) * 100)} %` : '–');
+
+function dias(desde, n) {
+  const out = []; const d0 = Date.parse(desde);
+  for (let i = 0; i < n; i++) out.push(new Date(d0 + i * 86400000).toISOString().slice(0, 10));
+  return out;
+}
+function barras(cont, ejes, lista, series) {
+  const max = Math.max(1, ...lista.map((d) => series.reduce((a, s) => a + (d[s.k] || 0), 0)));
+  cont.innerHTML = lista.map((d) => {
+    const partes = series.map((s) => `<span style="height:${((d[s.k] || 0) / max) * 100}%;background:${s.c}"></span>`).join('');
+    const tip = `${d.dia}<br>` + series.map((s) => `${s.n}: ${fmt(d[s.k])}`).join('<br>');
+    return `<div class="dia" data-tip="${tip}">${partes}</div>`;
+  }).join('');
+  ejes.innerHTML = `<span>${lista[0]?.dia.slice(5) || ''}</span><span>máx ${fmt(max)}</span><span>${lista.at(-1)?.dia.slice(5) || ''}</span>`;
+}
+const tip = $('tip');
+document.addEventListener('mousemove', (e) => {
+  const d = e.target.closest('.dia');
+  if (!d) { tip.style.display = 'none'; return; }
+  tip.innerHTML = d.dataset.tip; tip.style.display = 'block';
+  tip.style.left = `${Math.min(innerWidth - 160, e.clientX + 12)}px`; tip.style.top = `${e.clientY + 12}px`;
+});
+
+async function cargar() {
+  const n = Number($('dias').value);
+  const r = await (await fetch(`${API}/metricas?dias=${n}`)).json();
+  const lista = dias(r.desde, n).map((dia) => ({ dia }));
+  const porDia = Object.fromEntries(lista.map((d) => [d.dia, d]));
+  const tot = {};
+  for (const f of r.filas) {
+    const d = porDia[f.dia]; if (!d) continue;
+    const [t, a, b, c] = f.clave.split(':');
+    tot[f.clave] = (tot[f.clave] || 0) + f.n;
+    if (t === 'visita' && a === 'nuevo') d.nuevo = (d.nuevo || 0) + f.n;
+    if (t === 'visita' && a === 'vuelve') d.vuelve = (d.vuelve || 0) + f.n;
+    if (t === 'partida') d[a] = (d[a] || 0) + f.n;
+  }
+  const suma = (pref) => Object.entries(tot).filter(([k]) => k.startsWith(pref)).reduce((a, [, v]) => a + v, 0);
+  const nuevos = suma('visita:nuevo'), vuelven = suma('visita:vuelve'), partidas = suma('partida:'), fines = suma('fin:'), aband = suma('abandono:');
+  const onl = r.online.reduce((a, o) => ({ n: a.n + o.n, ia: a.ia + (o.conIA || 0) }), { n: 0, ia: 0 });
+  $('tarjetas').innerHTML = [
+    ['Personas nuevas', fmt(nuevos), 'primera visita en este navegador'],
+    ['Volvieron', fmt(vuelven), `${pct(vuelven, nuevos + vuelven)} de las visitas de otro día`],
+    ['Partidos empezados', fmt(partidas), `${fmt(fines)} terminados (${pct(fines, partidas)})`],
+    ['Abandonos', fmt(aband), pct(aband, partidas) + ' de los empezados'],
+    ['Online jugados', fmt(onl.n), `${fmt(onl.n - onl.ia)} entre humanos`],
+    ['Jugadores', fmt(r.jugadores?.total), `${fmt(r.jugadores?.jugaron)} jugaron al menos uno`],
+  ].map(([et, num, det]) => `<div class="tarjeta"><div class="et">${et}</div><div class="num">${num}</div><div class="det">${det}</div></div>`).join('');
+
+  barras($('gVisitas'), $('eVisitas'), lista, [{ k: 'nuevo', c: 'var(--nuevo)', n: 'primera vez' }, { k: 'vuelve', c: 'var(--vuelve)', n: 'vuelven' }]);
+  barras($('gPartidas'), $('ePartidas'), lista, [{ k: 'bot', c: 'var(--bot)', n: 'práctica' }, { k: 'online', c: 'var(--online)', n: 'online' }, { k: 'amigo', c: 'var(--amigo)', n: 'amigo' }]);
+
+  const modos = [['bot', 'Práctica'], ['online', 'Online'], ['amigo', 'Con un amigo']];
+  $('tModos').innerHTML = '<tr><th>Modo</th><th>Empezados</th><th>Terminados</th><th>Ganados por la persona</th><th>Abandonos</th><th>Duran más de 3 min</th></tr>' +
+    modos.map(([m, nom]) => {
+      const emp = tot[`partida:${m}`] || 0, fin = suma(`fin:${m}:`), gana = suma(`fin:${m}:gana`), ab = tot[`abandono:${m}`] || 0;
+      const largos = suma(`fin:${m}:gana:3a6`) + suma(`fin:${m}:pierde:3a6`) + suma(`fin:${m}:gana:mas6`) + suma(`fin:${m}:pierde:mas6`);
+      return `<tr><td>${nom}</td><td>${fmt(emp)}</td><td>${fmt(fin)}</td><td>${pct(gana, fin)}</td><td>${fmt(ab)}</td><td>${pct(largos, fin)}</td></tr>`;
+    }).join('');
+
+  const vueltas = [['1', 'al día siguiente'], ['2a7', 'en la semana'], ['8a30', 'en el mes'], ['mas30', 'después de un mes']];
+  $('tVuelta').innerHTML = '<tr><th>Volvieron</th><th>Visitas</th></tr>' + vueltas.map(([k, nom]) => `<tr><td>${nom}</td><td>${fmt(suma(`visita:vuelve:${k}:`))}</td></tr>`).join('');
+
+  const visitasDe = (filtro) => Object.entries(tot).filter(([k]) => k.startsWith('visita:') && filtro(k.split(':'))).reduce((a, [, v]) => a + v, 0);
+  const total = visitasDe(() => true);
+  const fila = (nom, v) => `<tr><td>${nom}</td><td>${fmt(v)}</td><td>${pct(v, total)}</td></tr>`;
+  $('tDesde').innerHTML = '<tr><th>Visitas (todas)</th><th>Cantidad</th><th>Parte</th></tr>' +
+    fila('Celu', visitasDe((p) => p.includes('celu'))) + fila('Compu', visitasDe((p) => p.includes('compu'))) +
+    fila('En castellano', visitasDe((p) => p.at(-1) === 'es')) + fila('En inglés', visitasDe((p) => p.at(-1) === 'en')) + fila('En portugués', visitasDe((p) => p.at(-1) === 'pt'));
+  $('hora').textContent = 'actualizado ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+$('dias').onchange = cargar;
+cargar();
+setInterval(() => { if (!document.hidden) cargar(); }, 60000);
+</script>
+</body>
+</html>

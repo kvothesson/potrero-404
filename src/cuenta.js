@@ -8,6 +8,7 @@
 import { GOOGLE_CLIENT_ID } from './cuentas-config.js';
 import { t, IDIOMA } from './idioma.js';
 import { pruebaHumano } from './humano.js';
+import { evento } from './metricas.js';
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -41,6 +42,7 @@ export function crearCuenta({ api, obtenerYo, guardar, alCerrar }) {
     const antes = yo?.id === r.datos.id ? yo.cuentas || [] : [];
     guardar({ id: r.datos.id, llave: r.datos.llave, nombre: r.datos.nombre, cuentas: [...new Set([...antes, r.datos.proveedor])] });
     pendiente = null;
+    evento({ t: 'cuenta', con: r.datos.proveedor });
     terminar();
   }
   function terminar() { const f = alListo; cerrar(); if (f) f(); }
@@ -106,6 +108,7 @@ export function crearCuenta({ api, obtenerYo, guardar, alCerrar }) {
             const r = await api('/registro', { nombre: v }).catch(() => ({ ok: false, datos: {} }));
             if (!r.ok) { ir('nombre', mensajeError(r)); return; }
             guardar({ id: r.datos.id, llave: r.datos.llave, nombre: r.datos.nombre, cuentas: [] });
+            evento({ t: 'cuenta', con: 'invitado' });
             terminar();
           }
         } finally { boton.disabled = false; }

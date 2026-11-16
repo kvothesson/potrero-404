@@ -7,6 +7,7 @@
 //   POST /entrar {google | mail+codigo, id?, llave?, nombre?} → {id, llave, nombre} (ver server/cuentas.js)
 import { registrar, verificar, tabla } from './ranking.js';
 import { pedirCodigo, entrar, cuentasDe, dentroDelLimite, verificarHumano } from './cuentas.js';
+import { sumar, resumen } from './metricas.js';
 
 const ORIGENES = ['https://kvothesson.com'];
 export function cabecerasCors(req) {
@@ -23,7 +24,7 @@ const json = (req, datos, status = 200) => new Response(JSON.stringify(datos), {
 // Devuelve una Response si la ruta es de la API, o null si no.
 export async function api(req, { db, buscar, cuentas }) {
   const url = new URL(req.url);
-  const rutas = ['/registro', '/yo', '/ranking', '/buscar', '/mail', '/entrar'];
+  const rutas = ['/registro', '/yo', '/ranking', '/buscar', '/mail', '/entrar', '/evento', '/metricas'];
   if (!rutas.includes(url.pathname)) return null;
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cabecerasCors(req) });
   // la conexión: en Cloudflare viene en CF-Connecting-IP; en la PC es siempre la misma
@@ -55,6 +56,14 @@ export async function api(req, { db, buscar, cuentas }) {
     }
     if (url.pathname === '/ranking') return json(req, { ...(await tabla(db, url.searchParams.get('yo'))), entrar: !!cuentas?.listo });
     if (url.pathname === '/buscar') return json(req, { codigo: await buscar() });
+    // métricas: el navegador manda eventos sueltos (como texto, para no pedir permiso CORS antes)
+    if (url.pathname === '/evento' && req.method === 'POST') {
+      if (!(await limite('evento'))) return new Response(null, { status: 204, headers: cabecerasCors(req) });
+      const cuerpo = JSON.parse((await req.text().catch(() => '')).slice(0, 512) || '{}');
+      await sumar(db, cuerpo);
+      return new Response(null, { status: 204, headers: cabecerasCors(req) });
+    }
+    if (url.pathname === '/metricas') return json(req, await resumen(db, Math.min(90, Number(url.searchParams.get('dias')) || 30)));
   } catch (e) {
     return json(req, { error: 'servidor' }, 500);
   }

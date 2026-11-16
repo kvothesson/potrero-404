@@ -13,7 +13,11 @@ import { CANCHAS, hash } from './canchas.js';
 // El mundo (WW×WH) es más grande: la cancha más el escenario de los costados, y la cámara sigue a tu auto.
 let BW = 272, BH = 400;
 const K = 0.5;
+const LIMPIO = new URLSearchParams(location.search).has('limpio');
 function medidas() {
+  // opción oculta para capturas (tarjeta del link, tráiler): ?medida=600x315
+  const fija = /^(\d{3})x(\d{3})$/.exec(new URLSearchParams(location.search).get('medida') || '');
+  if (fija) return [Number(fija[1]), Number(fija[2])];
   const a = window.innerWidth / Math.max(1, window.innerHeight);
   const dpr = window.devicePixelRatio || 1, alto = window.innerHeight * dpr, ancho = window.innerWidth * dpr;
   // parado: un ancho cercano a 272 que llene justo la pantalla con escala entera, y el alto que pida (400 a 480)
@@ -1052,8 +1056,10 @@ export function crearPintor(canvas, opciones = {}) {
       const k = Math.round(enPantalla / 360 * ANGULOS) % ANGULOS;
       b.drawImage(autos[extra.seguir][k], Math.round(p.x - TAM / 2), Math.round(p.y - TAM / 2 - alto));
     }
-    hud(s);
-    const enJuego = extra.pantalla === 'bot' || extra.pantalla === 'online';
+    // ?limpio: sin marcador ni botones (para la tarjeta del link y el tráiler)
+    const limpio = LIMPIO;
+    if (!limpio) hud(s);
+    const enJuego = !limpio && (extra.pantalla === 'bot' || extra.pantalla === 'online');
     if (enJuego) {
       if (s.fase !== 'fin') indicadores(s, extra.seguir);
       radar(s, extra.seguir); avisoCamion(s);

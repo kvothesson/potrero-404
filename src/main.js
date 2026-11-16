@@ -6,6 +6,7 @@ import { crearBot } from './bot.js';
 import { crearTactil, esTactil } from './tactil.js';
 import { conectar, codigoNuevo, urlApi } from './red.js';
 import { crearCuenta } from './cuenta.js';
+import { visita, evento, duracion } from './metricas.js';
 
 const params = new URLSearchParams(location.search);
 // Arte en pixel a lo Super Nintendo; con ?liso se ve el dibujo vectorial anterior.
@@ -114,6 +115,7 @@ const TECLAS = [
 const apretadas = new Set();
 const DE_JUEGO = new Set(TECLAS.flatMap((t) => Object.values(t).flat()));
 
+let partidaEnCurso = null;   // { modo, desde } para las métricas
 async function empezar(modo) {
   sonido.despertar();
   pintor.limpiarMarcas();
@@ -128,6 +130,7 @@ async function empezar(modo) {
     if (!r.ok) { red = { caido: true, cerrar() {}, tic: () => null, vista: () => null }; return; }
     red = conectar({ codigo: r.datos.codigo, fisica, rank: true, yo });
     red.codigo = r.datos.codigo;
+    partidaEnCurso = { modo: 'online', desde: performance.now() }; evento({ t: 'partida', modo: 'online' });
   } else if (modo === 'amigo') {
     // sala por link con amigos: no cuenta para el ranking
     pantalla = 'amigo';
@@ -138,15 +141,18 @@ async function empezar(modo) {
     }
     red = conectar({ codigo, fisica, yo });
     red.codigo = codigo;
+    partidaEnCurso = { modo: 'amigo', desde: performance.now() }; evento({ t: 'partida', modo: 'amigo' });
   } else {
     pantalla = 'bot';
     revancha(estado); if (fisica) estado.fisica = fisica;
     bot = crearBot(1, 5);
+    partidaEnCurso = { modo: 'bot', desde: performance.now() }; evento({ t: 'partida', modo: 'bot' });
   }
 }
 
 function volverAlMenu() {
   cuenta.cerrar();
+  if (partidaEnCurso) { evento({ t: 'abandono', modo: partidaEnCurso.modo }); partidaEnCurso = null; }
   if (red) { red.cerrar(); red = null; }
   cerrarTexto();
   const url = new URL(location.href); url.searchParams.delete('sala'); history.replaceState(null, '', url);
@@ -195,9 +201,10 @@ addEventListener('blur', () => apretadas.clear());
 // Otra: en la rankeada busca un partido nuevo; con amigos, revancha; contra la máquina, de nuevo.
 function revanchaAhora() {
   pintor.limpiarMarcas();
-  if (pantalla === 'online') empezar('online');
-  else if (red) red.revancha();
-  else revancha(estado);
+  if (pantalla === 'online') { empezar('online'); return; }
+  if (red) red.revancha(); else revancha(estado);
+  const modo = pantalla === 'bot' ? 'bot' : 'amigo';
+  partidaEnCurso = { modo, desde: performance.now() }; evento({ t: 'partida', modo });
 }
 
 // Toques y clics: botones dibujados en el canvas.
@@ -280,6 +287,11 @@ function cuadro(ahora) {
   }
   const s = online() && red ? red.vista() : vista();
   const jugando = pantalla === 'bot' || online();
+  if (partidaEnCurso && s && s.fase === 'fin') {
+    const lado = Math.max(0, aQuienSigo());
+    evento({ t: 'fin', modo: partidaEnCurso.modo, res: s.ganador === lado ? 'gana' : 'pierde', dura: duracion(performance.now() - partidaEnCurso.desde) });
+    partidaEnCurso = null;
+  }
   if (tactil) {
     tactil.mostrar(jugando && !pausa);
     const yoAuto = s && aQuienSigo() >= 0 ? s.autos[aQuienSigo()] : null;
@@ -290,6 +302,7 @@ function cuadro(ahora) {
   requestAnimationFrame(cuadro);
 }
 requestAnimationFrame(cuadro);
+visita();
 
 // Si se entra con un link de sala, ir directo a esa sala (con amigos, sin Elo).
 if (params.get('sala')) empezar('amigo');

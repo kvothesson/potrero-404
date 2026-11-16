@@ -99,7 +99,7 @@ export async function verificarGoogle(token, { clientId = GOOGLE_CLIENT_ID, clav
 // ---------- Límite por conexión ----------
 // Cuántas veces por hora puede hacer cada cosa una misma conexión. No se guarda la IP:
 // solo una huella con la sal secreta, que se borra sola al pasar la hora.
-export const LIMITES = { registro: 8, mail: 6, entrar: 30 };
+export const LIMITES = { registro: 8, mail: 6, entrar: 30, evento: 240 };
 export async function dentroDelLimite(db, sal, que, ip) {
   const tope = LIMITES[que];
   if (!tope) return true;

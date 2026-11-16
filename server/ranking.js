@@ -7,6 +7,7 @@
 // entra con Google o con un código por mail (server/cuentas.js), que da otra llave.
 // El resultado de una partida lo anota el servidor de la sala, nunca el navegador.
 import { ESQUEMA_CUENTAS, hash, azarTexto } from './cuentas.js';
+import { ESQUEMA_METRICAS } from './metricas.js';
 
 export const ESQUEMA = `
 CREATE TABLE IF NOT EXISTS jugadores (
@@ -60,7 +61,7 @@ export function limpiarNombre(n) {
 }
 
 export async function preparar(db) {
-  for (const sql of (ESQUEMA + ESQUEMA_CUENTAS).split(';').map((x) => x.trim()).filter(Boolean)) await db.correr(sql);
+  for (const sql of (ESQUEMA + ESQUEMA_CUENTAS + ESQUEMA_METRICAS).split(';').map((x) => x.trim()).filter(Boolean)) await db.correr(sql);
   for (const ia of IAS) {
     await db.correr(`INSERT OR IGNORE INTO jugadores (id, nombre, es_ia, nivel, elo, creado, actualizado) VALUES (?, ?, 1, ?, ?, ?, ?)`,
       ia.id, ia.nombre, ia.nivel, 700 + ia.nivel * 75, ahora(), ahora());
