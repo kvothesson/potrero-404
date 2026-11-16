@@ -41,7 +41,9 @@ async function api(ruta, cuerpo) {
 // ---------- entrada de texto (nombre o código de respaldo), sin palabras: íconos y un ✓ ----------
 const entrada = document.createElement('form');
 entrada.id = 'entrada'; entrada.className = 'oculto';
-entrada.innerHTML = '<input autocomplete="off" spellcheck="false" maxlength="40" aria-label="nombre"><button type="submit" aria-label="ok">✓</button>';
+entrada.innerHTML = '<input autocomplete="off" spellcheck="false" maxlength="40" aria-label="nombre"><button type="submit" aria-label="ok">✓</button>' +
+  // ¿ya tenés cuenta? entrar con Google o con el mail (en la página del ranking)
+  '<a class="cuenta" href="ranking/#cuenta" aria-label="entrar con Google o con tu mail"><b>G</b><svg viewBox="0 0 9 7" aria-hidden="true"><path d="M0 0h9v7H0z" fill="#e8e4ff"/><path d="M0 0l4.5 4L9 0" fill="none" stroke="#2a2448"/></svg></a>';
 document.body.appendChild(entrada);
 const campo = entrada.querySelector('input');
 let alConfirmar = null;

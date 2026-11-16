@@ -2,9 +2,11 @@
 // Lógica pura sobre una base SQL: la usan igual Cloudflare D1 (nube/) y SQLite local.
 // La base se pasa como `db` con tres funciones async: todas(sql, ...p), una(sql, ...p), correr(sql, ...p).
 //
-// Seguridad: nadie se registra con mail ni contraseña. Cada jugador tiene un id público y una
-// llave secreta que solo guarda su navegador; en la base va el hash de la llave. El resultado
-// de una partida lo anota el servidor de la sala, nunca el navegador.
+// Seguridad: no hay contraseñas. Cada jugador tiene un id público y una llave secreta que solo
+// guarda su navegador; en la base va el hash de la llave. Para jugar desde otro dispositivo se
+// entra con Google o con un código por mail (server/cuentas.js), que da otra llave.
+// El resultado de una partida lo anota el servidor de la sala, nunca el navegador.
+import { ESQUEMA_CUENTAS, hash, azarTexto } from './cuentas.js';
 
 export const ESQUEMA = `
 CREATE TABLE IF NOT EXISTS jugadores (
@@ -50,15 +52,6 @@ export const IAS = [
 const ELO_INICIAL = 1000;
 
 const ahora = () => new Date().toISOString();
-const LETRAS = 'abcdefghijkmnpqrstuvwxyz23456789';
-function azarTexto(n) {
-  const b = new Uint8Array(n); crypto.getRandomValues(b);
-  return Array.from(b, (x) => LETRAS[x % LETRAS.length]).join('');
-}
-async function hash(texto) {
-  const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(texto));
-  return Array.from(new Uint8Array(d), (x) => x.toString(16).padStart(2, '0')).join('');
-}
 
 // Nombre: de 2 a 16 caracteres, letras (con acentos), números, espacio, punto, guion.
 export function limpiarNombre(n) {
@@ -67,7 +60,7 @@ export function limpiarNombre(n) {
 }
 
 export async function preparar(db) {
-  for (const sql of ESQUEMA.split(';').map((x) => x.trim()).filter(Boolean)) await db.correr(sql);
+  for (const sql of (ESQUEMA + ESQUEMA_CUENTAS).split(';').map((x) => x.trim()).filter(Boolean)) await db.correr(sql);
   for (const ia of IAS) {
     await db.correr(`INSERT OR IGNORE INTO jugadores (id, nombre, es_ia, nivel, elo, creado, actualizado) VALUES (?, ?, 1, ?, ?, ?, ?)`,
       ia.id, ia.nombre, ia.nivel, 700 + ia.nivel * 75, ahora(), ahora());
@@ -87,7 +80,9 @@ export async function registrar(db, nombre) {
 export async function verificar(db, id, llave) {
   if (!id || !llave) return null;
   const j = await db.una(`SELECT id, nombre, elo, partidas, victorias, llave_hash FROM jugadores WHERE id = ? AND es_ia = 0`, String(id));
-  if (!j || j.llave_hash !== await hash(String(llave))) return null;
+  if (!j) return null;
+  const h = await hash(String(llave));
+  if (j.llave_hash !== h && !(await db.una(`SELECT 1 AS ok FROM llaves WHERE llave_hash = ? AND jugador = ?`, h, j.id))) return null;
   delete j.llave_hash;
   return j;
 }

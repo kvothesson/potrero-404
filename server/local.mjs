@@ -12,6 +12,7 @@ import { WebSocketServer } from 'ws';
 import { crearSala, ESPERA_IA } from './sala.js';
 import { api, crearFila } from './api.js';
 import { preparar, verificar, elegirIA, anotar } from './ranking.js';
+import { mailResend } from './cuentas.js';
 
 const RAIZ = fileURLToPath(new URL('..', import.meta.url));
 const PUERTO = Number(process.env.PORT || 5421);
@@ -29,12 +30,20 @@ const db = {
 };
 await preparar(db);
 const buscar = crearFila(ESPERA_IA - 500);
+// Cuentas: en la PC el código del mail no se manda, se muestra acá en la consola.
+// Con RESEND=<clave> sí se manda de verdad.
+const cuentas = {
+  listo: true,
+  sal: process.env.SAL || 'sal-local-de-prueba',
+  enviarMail: process.env.RESEND ? mailResend(process.env.RESEND)
+    : async (mail, codigo) => { console.log(`[mail] código para ${mail}: ${codigo}`); return true; },
+};
 
 const http = createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
   // API del ranking
   const cuerpo = req.method === 'POST' ? await new Promise((ok) => { let d = ''; req.on('data', (c) => { d += c; if (d.length > 4096) req.destroy(); }); req.on('end', () => ok(d)); }) : undefined;
-  const respuesta = await api(new Request(url, { method: req.method, headers: req.headers, body: cuerpo }), { db, buscar: () => buscar() });
+  const respuesta = await api(new Request(url, { method: req.method, headers: req.headers, body: cuerpo }), { db, buscar: () => buscar(), cuentas });
   if (respuesta) {
     res.writeHead(respuesta.status, Object.fromEntries(respuesta.headers));
     res.end(await respuesta.text());

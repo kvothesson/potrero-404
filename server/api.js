@@ -3,7 +3,10 @@
 //   GET  /yo?id=&llave=          → tus datos, o 401 si la llave no coincide
 //   GET  /ranking?yo=            → {lista, propio}: los primeros 50 y tu puesto si no estás entre ellos
 //   GET  /buscar                 → {codigo}: la sala rankeada a la que entrar (con alguien esperando, o nueva)
+//   POST /mail {mail}            → manda un código de 6 números a ese mail
+//   POST /entrar {google | mail+codigo, id?, llave?, nombre?} → {id, llave, nombre} (ver server/cuentas.js)
 import { registrar, verificar, tabla } from './ranking.js';
+import { pedirCodigo, entrar, cuentasDe } from './cuentas.js';
 
 const ORIGENES = ['https://kvothesson.com'];
 export function cabecerasCors(req) {
@@ -18,9 +21,9 @@ const json = (req, datos, status = 200) => new Response(JSON.stringify(datos), {
 });
 
 // Devuelve una Response si la ruta es de la API, o null si no.
-export async function api(req, { db, buscar }) {
+export async function api(req, { db, buscar, cuentas }) {
   const url = new URL(req.url);
-  const rutas = ['/registro', '/yo', '/ranking', '/buscar'];
+  const rutas = ['/registro', '/yo', '/ranking', '/buscar', '/mail', '/entrar'];
   if (!rutas.includes(url.pathname)) return null;
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cabecerasCors(req) });
   try {
@@ -31,9 +34,19 @@ export async function api(req, { db, buscar }) {
     }
     if (url.pathname === '/yo') {
       const j = await verificar(db, url.searchParams.get('id'), url.searchParams.get('llave'));
-      return j ? json(req, j) : json(req, { error: 'llave' }, 401);
+      return j ? json(req, { ...j, cuentas: await cuentasDe(db, j.id) }) : json(req, { error: 'llave' }, 401);
     }
-    if (url.pathname === '/ranking') return json(req, await tabla(db, url.searchParams.get('yo')));
+    if (url.pathname === '/mail' && req.method === 'POST') {
+      const cuerpo = await req.json().catch(() => ({}));
+      const r = await pedirCodigo(db, cuentas, cuerpo.mail);
+      return json(req, r, r.error ? (r.error === 'mail' ? 400 : 429) : 200);
+    }
+    if (url.pathname === '/entrar' && req.method === 'POST') {
+      const cuerpo = await req.json().catch(() => ({}));
+      const r = await entrar(db, cuentas, cuerpo, { verificar, crearJugador: registrar });
+      return json(req, r, r.error ? 400 : 200);
+    }
+    if (url.pathname === '/ranking') return json(req, { ...(await tabla(db, url.searchParams.get('yo'))), entrar: !!cuentas?.listo });
     if (url.pathname === '/buscar') return json(req, { codigo: await buscar() });
   } catch (e) {
     return json(req, { error: 'servidor' }, 500);

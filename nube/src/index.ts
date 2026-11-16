@@ -8,8 +8,16 @@ import { crearSala, ESPERA_IA } from "../../server/sala.js";
 import { api, crearFila, cabecerasCors } from "../../server/api.js";
 // @ts-ignore
 import { preparar, verificar, elegirIA, anotar } from "../../server/ranking.js";
+// @ts-ignore
+import { mailResend } from "../../server/cuentas.js";
 
-type Env = { DB: any };
+// SAL y RESEND son secretos: se suben con `cf deploy --secrets-file` (ver README).
+type Env = { DB: any; SAL?: string; RESEND?: string };
+const cuentas = (env: Env) => ({
+	listo: !!(env.SAL && env.RESEND),
+	sal: env.SAL || "",
+	enviarMail: env.RESEND ? mailResend(env.RESEND) : async () => false,
+});
 
 // D1 con la interfaz que espera server/ranking.js
 function base(env: Env) {
@@ -90,7 +98,8 @@ export default {
 			return sala.fetch(req);
 		}
 		const fila = ctx.exports.Fila.get(ctx.exports.Fila.idFromName("global"));
-		const r = await api(req, { db: await db(env), buscar: () => fila.codigo() });
+		if (!(env.SAL && env.RESEND) && ['/mail', '/entrar'].includes(url.pathname)) return new Response(JSON.stringify({ error: 'sinConfigurar' }), { status: 503, headers: { 'content-type': 'application/json', ...cabecerasCors(req) } });
+		const r = await api(req, { db: await db(env), buscar: () => fila.codigo(), cuentas: cuentas(env) });
 		if (r) return r;
 		return new Response("Potrero 404: servidor de salas. El juego está en https://kvothesson.com/potrero-404/", {
 			headers: { "content-type": "text/plain; charset=utf-8", ...cabecerasCors(req) },

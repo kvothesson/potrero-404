@@ -1,3 +1,4 @@
 node_modules/
 .cloudflare/
 server/datos/
+nube/.secretos.json
