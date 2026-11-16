@@ -5,6 +5,7 @@ import { crearSonido } from './sonido.js';
 import { crearBot } from './bot.js';
 import { crearTactil, esTactil } from './tactil.js';
 import { conectar, codigoNuevo, urlApi } from './red.js';
+import { crearCuenta } from './cuenta.js';
 
 const params = new URLSearchParams(location.search);
 // Arte en pixel a lo Super Nintendo; con ?liso se ve el dibujo vectorial anterior.
@@ -37,13 +38,20 @@ async function api(ruta, cuerpo) {
   const datos = await r.json().catch(() => ({}));
   return { ok: r.ok, status: r.status, datos };
 }
+// Quién sos: entrar con Google, con un código por mail, o como invitado (solo un nombre).
+const cuenta = crearCuenta({ api, obtenerYo: () => yo, guardar: (y) => { yo = y; guardarYo(y); } });
+cuenta.refrescar();
+function abrirCuenta(despues) {
+  if (red) { red.cerrar(); red = null; }
+  cerrarTexto();
+  pantalla = 'nombre';
+  cuenta.abrir(despues || (() => { pantalla = 'menu'; }));
+}
 
 // ---------- entrada de texto (nombre o código de respaldo), sin palabras: íconos y un ✓ ----------
 const entrada = document.createElement('form');
 entrada.id = 'entrada'; entrada.className = 'oculto';
-entrada.innerHTML = '<input autocomplete="off" spellcheck="false" maxlength="40" aria-label="nombre"><button type="submit" aria-label="ok">✓</button>' +
-  // ¿ya tenés cuenta? entrar con Google o con el mail (en la página del ranking)
-  '<a class="cuenta" href="ranking/#cuenta" aria-label="entrar con Google o con tu mail"><b>G</b><svg viewBox="0 0 9 7" aria-hidden="true"><path d="M0 0h9v7H0z" fill="#e8e4ff"/><path d="M0 0l4.5 4L9 0" fill="none" stroke="#2a2448"/></svg></a>';
+entrada.innerHTML = '<input autocomplete="off" spellcheck="false" maxlength="40" aria-label="nombre"><button type="submit" aria-label="ok">✓</button>';
 document.body.appendChild(entrada);
 const campo = entrada.querySelector('input');
 let alConfirmar = null;
@@ -113,7 +121,7 @@ async function empezar(modo) {
   if (red) { red.cerrar(); red = null; }
   if (modo === 'online') {
     // rankeada: hace falta un nombre; el servidor busca rival o, si no hay, una IA de tu nivel
-    if (!yo) { pedirNombre(() => empezar('online')); return; }
+    if (!yo) { abrirCuenta(() => empezar('online')); return; }
     pantalla = 'online';
     const r = await api('/buscar').catch(() => ({ ok: false }));
     if (pantalla !== 'online') return;
@@ -138,6 +146,7 @@ async function empezar(modo) {
 }
 
 function volverAlMenu() {
+  cuenta.cerrar();
   if (red) { red.cerrar(); red = null; }
   cerrarTexto();
   const url = new URL(location.href); url.searchParams.delete('sala'); history.replaceState(null, '', url);
@@ -155,6 +164,7 @@ const online = () => pantalla === 'online' || pantalla === 'amigo';
 
 addEventListener('keydown', (e) => {
   if (e.target && e.target.tagName === 'INPUT') { if (e.code === 'Escape') volverAlMenu(); return; }
+  if (cuenta.abierto()) { if (e.code === 'Escape') volverAlMenu(); return; }
   if (DE_JUEGO.has(e.code)) e.preventDefault();
   sonido.despertar();
   apretadas.add(e.code);
@@ -197,6 +207,7 @@ canvas.addEventListener('pointerdown', (e) => {
   if (!id) return;
   if (id === 'bot' || id === 'online' || id === 'amigo') empezar(id);
   else if (id === 'ranking') verRanking();
+  else if (id === 'cuenta') abrirCuenta();
   else if (id === 'menu') volverAlMenu();
   else if (id === 'otra') revanchaAhora();
   else if (id === 'copiar') copiar(location.href, true);
@@ -263,7 +274,7 @@ function cuadro(ahora) {
       const lado = red.lado >= 0 ? red.lado : 0;
       const s = red.tic(leerPropio(red.estado && red.estado.autos[lado]));
       if (s) sonido.eventos(s);
-      if (red.sinIdentidad) { guardarYo(null); yo = null; pedirNombre(() => empezar('online')); }
+      if (red.sinIdentidad) { guardarYo(null); yo = null; abrirCuenta(() => empezar('online')); }
     }
     acumulado -= DT;
   }

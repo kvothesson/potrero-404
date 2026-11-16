@@ -714,12 +714,10 @@ export function crearPintor(canvas, opciones = {}) {
     boton('menu', 8, BH - 28, 24, 20, GRIS, (x, yy) => icono(b, 'casa', x + 7, yy + 5));
   }
 
-  // Elegir nombre: tu auto y la flecha al campo de texto (que es HTML, encima del canvas).
+  // Quién sos: el panel de cuenta es HTML (src/cuenta.js), encima del canvas; acá solo el fondo.
   function pantallaNombre() {
     b.fillStyle = 'rgba(20,15,34,.9)'; b.fillRect(0, 0, BW, BH);
-    autoChico(0, BW / 2, 120, ANGULOS * 3 / 4);
-    icono(b, 'trofeo', BW / 2 + 22, 112, 2);
-    for (let r = 0; r < 5; r++) { b.fillStyle = '#9890b8'; b.fillRect(BW / 2 - 4 + r, 150 + r, 9 - r * 2, 1); }
+    autoChico(0, BW / 2, 60, ANGULOS * 3 / 4);
     boton('menu', 8, BH - 28, 24, 20, GRIS, (x, y) => icono(b, 'casa', x + 7, y + 5));
   }
 
@@ -798,7 +796,18 @@ export function crearPintor(canvas, opciones = {}) {
       icono(b, 'trofeo', x + 8, y + 4); icono(b, 'flecha', x + 18, y + 6); icono(b, 'robot', x + 28, y + 4);
       if (!extra.tactil) tecla(b, '4', x + 44 - 8, y - 9);
     });
-    if (extra.yo) texto(b, extra.yo.nombre, BW / 2, BH - 42, { alinear: 'centro', color: '#c8f4ff' });
+    // tu cuenta: tu nombre (con ✓ si entraste con Google o mail) o una persona para entrar
+    {
+      const nombre = extra.yo ? extra.yo.nombre : '';
+      const unida = extra.yo && extra.yo.cuentas && extra.yo.cuentas.length;
+      const ancho = Math.max(30, 20 + nombre.length * 6 + (unida ? 10 : 0));
+      boton('cuenta', BW - ancho - 4, 4, ancho, 20, GRIS, (x, y) => {
+        icono(b, 'persona', x + 5, y + 4);
+        if (nombre) texto(b, nombre, x + 17, y + 6, { color: '#c8f4ff' });
+        else texto(b, '?', x + 18, y + 6, { color: '#fff4b0' });
+        if (unida) icono(b, 'tilde', x + ancho - 13, y + 4);
+      });
+    }
     if (!extra.tactil) { tecla(b, 'ESC', 8, BH - 22, 21); icono(b, 'pausa', 32, BH - 20); }
     boton('sonido', BW - 30, BH - 26, 22, 18, GRIS, (x, y) => { icono(b, 'sonido', x + 7, y + 4); });
     if (!extra.tactil) tecla(b, 'M', BW - 48, BH - 24);

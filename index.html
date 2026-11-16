@@ -41,9 +41,26 @@
   #entrada input:focus { border-color: #fff4b0; }
   #entrada button { width: 52px; font: 700 24px/1 system-ui, sans-serif; background: #2f8f6a; color: #fff; border: 3px solid #140f22;
     border-radius: 4px; box-shadow: 0 4px 0 #1c5a42; cursor: pointer; }
-  #entrada a.cuenta { display: flex; align-items: center; gap: 4px; padding: 0 10px; background: #4a4470; border: 3px solid #140f22;
-    border-radius: 4px; box-shadow: 0 4px 0 #2a2448; color: #fff; text-decoration: none; font: 700 20px/1 system-ui, sans-serif; }
-  #entrada a.cuenta svg { width: 22px; height: 17px; shape-rendering: crispEdges; }
+  /* quién sos: Google, mail o invitado (src/cuenta.js) */
+  #cuenta { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 3; display: flex; flex-direction: column;
+    align-items: center; gap: 12px; width: min(86vw, 300px); padding: 16px; background: #140f22; border: 3px solid #4a4470;
+    border-radius: 4px; box-shadow: 0 6px 0 #0c0a14; }
+  #cuenta.oculto { display: none; }
+  #cuenta .titulo { display: flex; align-items: center; gap: 8px; color: #c8f4ff; font: 600 16px/1 ui-monospace, Consolas, monospace; max-width: 100%; overflow: hidden; }
+  #cuenta .titulo svg, #cuenta .ic svg { width: 22px; height: 22px; shape-rendering: crispEdges; flex: none; }
+  #cuenta .titulo .tilde { color: #7cf09a; }
+  #cuenta .google { min-height: 44px; }
+  #cuenta .fila { display: flex; gap: 8px; width: 100%; align-items: center; }
+  #cuenta .ic { display: grid; place-items: center; }
+  #cuenta input { flex: 1; min-width: 0; font: 600 18px/1 ui-monospace, Consolas, monospace; padding: 10px; background: #0c0a14; color: #fff4b0;
+    border: 3px solid #9890b8; border-radius: 4px; outline: none; }
+  #cuenta input:focus { border-color: #fff4b0; }
+  #cuenta button { min-width: 48px; height: 44px; font: 700 22px/1 system-ui, sans-serif; background: #2f8f6a; color: #fff; border: 3px solid #0c0a14;
+    border-radius: 4px; box-shadow: 0 4px 0 #1c5a42; cursor: pointer; }
+  #cuenta button:disabled { opacity: .5; }
+  #cuenta button.chico { background: #4a4470; box-shadow: 0 4px 0 #2a2448; height: 36px; font-size: 18px; }
+  #cuenta .o { width: 60%; height: 3px; background: #2a2448; }
+  #cuenta .fila.error input { border-color: #ff5a6e; animation: temblar .25s; }
   #entrada.error input { border-color: #ff5a6e; animation: temblar .25s; }
   @keyframes temblar { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
   /* vuelta a la portada de kvothesson.com, chiquita en una esquina */
