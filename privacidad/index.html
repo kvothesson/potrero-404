@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#1c1830">
+<title>Potrero 404 · Privacidad</title>
+<meta name="description" content="Qué datos guarda Potrero 404 y cómo borrarlos.">
+<style>
+  :root { --fondo: #1c1830; --texto: #e8e4ff; --tenue: #a8a2cc; --titulo: #fff4b0; }
+  html, body { margin: 0; background: var(--fondo); color: var(--texto); }
+  body { font: 16px/1.7 system-ui, -apple-system, Segoe UI, sans-serif; padding: 32px 16px 64px; display: flex; justify-content: center; }
+  main { max-width: 640px; width: 100%; }
+  h1 { color: var(--titulo); font-size: 28px; margin: 0 0 4px; }
+  h2 { color: var(--titulo); font-size: 18px; margin: 28px 0 6px; }
+  p, li { color: var(--texto); }
+  .sub { color: var(--tenue); margin: 0 0 24px; }
+  a { color: #c8f4ff; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Potrero 404: privacidad</h1>
+  <p class="sub">Última actualización: 15 de noviembre de 2026</p>
+
+  <p>Potrero 404 es un juego gratis de fútbol con autos que se juega en el navegador. Se puede jugar sin cuenta. Esta página explica qué se guarda cuando jugás online o entrás con Google o con tu mail.</p>
+
+  <h2>Qué se guarda</h2>
+  <ul>
+    <li><b>Tu nombre de jugador</b>, el que elegís vos, y tus resultados: Elo, partidas jugadas y ganadas. Esto se ve en el ranking público.</li>
+    <li><b>Una llave secreta</b> que guarda tu navegador para reconocerte. En el servidor solo se guarda una huella (hash) de esa llave.</li>
+    <li><b>Si entrás con tu mail:</b> no se guarda tu mail. Se guarda una huella cifrada (HMAC con una clave secreta del servidor) que sirve para reconocerte la próxima vez, pero de la que no se puede sacar el mail. El mail se usa una sola vez para mandarte el código de ingreso, a través de <a href="https://resend.com/legal/privacy-policy">Resend</a>.</li>
+    <li><b>Si entrás con Google:</b> se usa solo el número de cuenta que da Google, guardado como huella cifrada. No se guarda tu nombre, mail ni foto de Google.</li>
+  </ul>
+
+  <h2>Qué no se hace</h2>
+  <ul>
+    <li>No hay publicidad, ni seguimiento, ni cookies de terceros.</li>
+    <li>No se venden ni se comparten datos con nadie.</li>
+    <li>No se mandan mails más que el código que pedís.</li>
+  </ul>
+
+  <h2>Dónde está</h2>
+  <p>El juego se sirve desde GitHub Pages y el servidor de partidas y ranking corre en Cloudflare. El código es abierto: <a href="https://github.com/kvothesson/potrero-404">github.com/kvothesson/potrero-404</a>.</p>
+
+  <h2>Borrar tus datos</h2>
+  <p>Para borrar tu jugador y sus cuentas, abrí un pedido en <a href="https://github.com/kvothesson/potrero-404/issues">github.com/kvothesson/potrero-404/issues</a> con tu nombre de jugador, o escribí a Kvothesson por <a href="https://kvothesson.com/">kvothesson.com</a>. Se borra en pocos días. Para que el navegador te olvide, usá "salir en este navegador" en la <a href="../ranking/">página del ranking</a> o borrá los datos del sitio.</p>
+
+  <p><a href="../">Volver al juego</a></p>
+</main>
+</body>
+</html>
