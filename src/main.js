@@ -116,6 +116,35 @@ const apretadas = new Set();
 const DE_JUEGO = new Set(TECLAS.flatMap((t) => Object.values(t).flat()));
 
 let partidaEnCurso = null;   // { modo, desde } para las métricas
+
+// ---------- intro: logo de Kvothesson y tráiler, solo la primera vez (o con ?intro), salteable ----------
+const LOGO_S = 2.4, TRAILER_S = 13.5;
+let introDesde = 0, introJuega = false, botIntro = null;
+function quiereIntro() {
+  if (params.get('sala')) return false;
+  if (params.has('intro')) return true;
+  try { return !localStorage.getItem('potrero404.intro'); } catch { return false; }
+}
+function empezarIntro() {
+  pantalla = 'intro'; introDesde = performance.now(); introJuega = false;
+  estado = nuevoEstado(); botIntro = crearBot(0, 7); bot = crearBot(1, 7);
+}
+function terminarIntro() {
+  try { localStorage.setItem('potrero404.intro', '1'); } catch { /* sin almacenamiento */ }
+  pantalla = 'menu'; estado = nuevoEstado(); if (fisica) estado.fisica = fisica; bot = null; botIntro = null;
+  pintor.limpiarMarcas();
+}
+function pasoIntro() {
+  const t = (performance.now() - introDesde) / 1000;
+  if (t < LOGO_S) return;
+  if (!introJuega) {
+    introJuega = true; estado.fase = 'juego'; estado.reloj = 0;
+    // el camión pasa a mitad del tráiler
+    estado.camion = { estado: 'espera', cuando: estado.tiempoJuego + Math.round(6.6 * FPS), x: 480 + (Math.random() < 0.5 ? -200 : 200), dir: Math.random() < 0.5 ? 1 : -1, y: 0, t: 0 };
+  }
+  paso(estado, [botIntro(estado), bot(estado)]);
+  if (t > LOGO_S + TRAILER_S) terminarIntro();
+}
 async function empezar(modo) {
   sonido.despertar();
   pintor.limpiarMarcas();
@@ -169,6 +198,7 @@ async function verRanking() {
 const online = () => pantalla === 'online' || pantalla === 'amigo';
 
 addEventListener('keydown', (e) => {
+  if (pantalla === 'intro') { e.preventDefault(); terminarIntro(); return; }
   if (e.target && e.target.tagName === 'INPUT') { if (e.code === 'Escape') volverAlMenu(); return; }
   if (cuenta.abierto()) { if (e.code === 'Escape') volverAlMenu(); return; }
   if (DE_JUEGO.has(e.code)) e.preventDefault();
@@ -217,6 +247,8 @@ function revanchaAhora() {
 }
 
 // Toques y clics: botones dibujados en el canvas.
+// cualquier toque saltea la intro (en captura, para que no apriete nada de abajo)
+addEventListener('pointerdown', (e) => { if (pantalla === 'intro') { e.stopPropagation(); e.preventDefault(); terminarIntro(); } }, true);
 canvas.addEventListener('pointerdown', (e) => {
   sonido.despertar();
   const id = pintor.botonEn(e.clientX, e.clientY);
@@ -258,7 +290,7 @@ function leerPropio(auto) {
 
 // La cámara sigue a tu auto: contra la máquina sos el azul; online, el lado que te tocó.
 function aQuienSigo() {
-  if (pantalla === 'bot') return 0;
+  if (pantalla === 'bot' || pantalla === 'intro') return 0;
   if (online() && red && red.lado >= 0) return red.lado;
   return -1;
 }
@@ -270,7 +302,8 @@ function vista() {
 
 function extras() {
   return {
-    pantalla: pantalla === 'amigo' ? 'online' : pantalla, rankeada: pantalla === 'online', pausa, tactil: !!tactil, seguir: aQuienSigo(),
+    pantalla: pantalla === 'amigo' ? 'online' : pantalla,
+    intro: pantalla === 'intro' ? (() => { const t = (performance.now() - introDesde) / 1000; return t < LOGO_S ? { fase: 'logo', t } : { fase: 'trailer', t: t - LOGO_S }; })() : null, rankeada: pantalla === 'online', pausa, tactil: !!tactil, seguir: aQuienSigo(),
     yo, ranking, mostrarRespaldo, respaldo: codigoRespaldo(), camPelota, sonido: sonido.prendido(),
     red: red && { lado: red.lado, jugadores: red.jugadores, codigo: red.codigo, caido: red.caido, conectado: red.conectado, ping: red.ping,
       listo: !!red.estado, nombres: red.nombres, elo: red.elo, rankeada: pantalla === 'online' },
@@ -284,7 +317,8 @@ function cuadro(ahora) {
   if (window.potrero && window.potrero.congelado) { antes = ahora; requestAnimationFrame(cuadro); return; }   // para pruebas
   acumulado += Math.min(250, ahora - antes); antes = ahora;
   while (acumulado >= DT) {
-    if (pantalla === 'bot' && !pausa) {
+    if (pantalla === 'intro') pasoIntro();
+    else if (pantalla === 'bot' && !pausa) {
       paso(estado, [leerPropio(estado.autos[0]), bot(estado)]);
       sonido.eventos(estado);
     } else if (online() && red) {
@@ -311,6 +345,7 @@ function cuadro(ahora) {
   pintor.dibujar(s || estado, extras());
   requestAnimationFrame(cuadro);
 }
+if (quiereIntro()) empezarIntro();
 requestAnimationFrame(cuadro);
 visita();
 
@@ -320,7 +355,7 @@ if (params.get('sala')) empezar('amigo');
 // para pruebas automáticas desde la consola
 window.potrero = {
   get estado() { return vista() || estado; }, get red() { return red; }, get pantalla() { return pantalla; },
-  paso: (e) => paso(estado, e), empezar: (m = 'bot') => empezar(m), menu: volverAlMenu, ranking: verRanking,
+  paso: (e) => paso(estado, e), empezar: (m = 'bot') => empezar(m), menu: volverAlMenu, ranking: verRanking, intro: () => empezarIntro(),
   leerPropio: () => leerPropio(vista() && vista().autos[Math.max(0, aQuienSigo())]),
   dibujar: () => pintor.dibujar((online() && red ? red.vista() : vista()) || estado, extras()),
 };

@@ -19,6 +19,13 @@ const TEXTOS = {
   sonido: { es: 'SONIDO', en: 'SOUND', pt: 'SOM' },
   girar: { es: 'GIRÁ EL CELU PARA JUGAR MEJOR', en: 'TURN YOUR PHONE FOR A BETTER VIEW', pt: 'GIRE O CELULAR PARA JOGAR MELHOR' },
   desafiar: { es: 'DESAFIAR', en: 'CHALLENGE', pt: 'DESAFIAR' },
+  saltear: { es: 'SALTEAR →', en: 'SKIP →', pt: 'PULAR →' },
+  presenta: { es: 'PRESENTA', en: 'PRESENTS', pt: 'APRESENTA' },
+  intro1: { es: 'RUTA 404 · DE NOCHE', en: 'ROUTE 404 · AT NIGHT', pt: 'ROTA 404 · DE NOITE' },
+  intro2: { es: 'FÚTBOL CON AUTOS', en: 'CAR SOCCER', pt: 'FUTEBOL COM CARROS' },
+  intro3: { es: 'NITRO · DERRAPE · SALTO', en: 'NITRO · DRIFT · JUMP', pt: 'NITRO · DERRAPAR · PULO' },
+  intro4: { es: 'CUIDADO CON EL CAMIÓN', en: 'WATCH OUT FOR THE TRUCK', pt: 'CUIDADO COM O CAMINHÃO' },
+  intro5: { es: 'ONLINE · GRATIS · SIN INSTALAR', en: 'ONLINE · FREE · NO INSTALL', pt: 'ONLINE · GRÁTIS · SEM INSTALAR' },
   gana: { es: 'GANA EL PRIMERO EN HACER 3', en: 'FIRST TO 3 GOALS WINS', pt: 'VENCE QUEM FIZER 3 GOLS' },
 
   // panel de cuenta (HTML)

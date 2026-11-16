@@ -909,6 +909,49 @@ export function crearPintor(canvas, opciones = {}) {
     });
   }
 
+  // Intro: el logo de Kvothesson (un hexágono que se dibuja y el nombre) y después un tráiler
+  // con dos bots jugando de verdad, franjas de cine y frases cortas. Cualquier tecla o toque lo saltea.
+  function intro(s, it) {
+    const tt = it.t || 0;
+    if (it.fase === 'logo') {
+      b.fillStyle = '#0c0a14'; b.fillRect(0, 0, BW, BH);
+      const cx = BW / 2, cy = BH / 2 - 14, R = Math.round(Math.min(BW, BH) * 0.12);
+      const pts = [...Array(7)].map((_, i) => { const a = Math.PI / 3 * i - Math.PI / 2; return [cx + R * Math.cos(a), cy + R * Math.sin(a)]; });
+      const prog = Math.min(1, tt / 0.9) * 6;
+      b.strokeStyle = '#66e0ff'; b.lineWidth = 2; b.beginPath(); b.moveTo(...pts[0]);
+      for (let i = 1; i <= 6; i++) { const f = Math.min(1, Math.max(0, prog - (i - 1))); if (f <= 0) break; const [x0, y0] = pts[i - 1], [x1, y1] = pts[i]; b.lineTo(x0 + (x1 - x0) * f, y0 + (y1 - y0) * f); }
+      b.stroke();
+      if (tt > 0.8) {
+        b.globalAlpha = Math.min(1, (tt - 0.8) / 0.4);
+        const w = 10 * 12 - 2, x = cx - w / 2, y = cy + R + 14;
+        texto(b, 'KVOTHES', x, y, { esc: 2, color: '#ffffff', sombra: null });
+        texto(b, 'SON', x + 7 * 12, y, { esc: 2, color: '#66e0ff', sombra: null });
+        texto(b, t('presenta'), cx, y + 22, { alinear: 'centro', color: '#9890b8', sombra: null });
+        b.globalAlpha = 1;
+      }
+    } else {
+      // franjas de cine y la frase del momento
+      const f = Math.round(BH * 0.11);
+      b.fillStyle = '#000'; b.fillRect(0, 0, BW, f); b.fillRect(0, BH - f, BW, f);
+      const frases = ['intro1', 'intro2', 'intro3', 'intro4', 'intro5'];
+      const k = Math.min(frases.length - 1, Math.floor(tt / 2.4));
+      const fin = tt > 12;
+      if (!fin) {
+        const local = tt - k * 2.4, a = Math.min(1, local / 0.3, (2.4 - local) / 0.3);
+        b.globalAlpha = Math.max(0, a);
+        texto(b, t(frases[k]), BW / 2, BH - f + Math.round((f - 14) / 2), { esc: 2, alinear: 'centro', color: '#fff4b0', sombra: P.contorno });
+        b.globalAlpha = 1;
+      } else {
+        b.fillStyle = 'rgba(12,10,20,.6)'; b.fillRect(0, f, BW, BH - 2 * f);
+        const te = BW >= 272 ? 4 : 3;
+        texto(b, 'POTRERO 404', BW / 2 + 2, BH / 2 - 12, { esc: te, alinear: 'centro', color: '#ffb030', sombra: '#7a2a10' });
+        texto(b, 'POTRERO 404', BW / 2, BH / 2 - 14, { esc: te, alinear: 'centro', color: '#fff4b0', sombra: null });
+      }
+    }
+    // saltear, siempre a mano
+    texto(b, t('saltear'), BW - 6, 6, { alinear: 'der', color: 'rgba(232,228,255,.7)', sombra: null });
+  }
+
   // Sala online: código grande, botón para copiar o compartir el link y quién falta.
   let copiado = 0;
   function esperaSala(r, extra) {
@@ -1067,7 +1110,7 @@ export function crearPintor(canvas, opciones = {}) {
     }
     // ?limpio: sin marcador ni botones (para la tarjeta del link y el tráiler)
     const limpio = LIMPIO;
-    if (!limpio) hud(s);
+    if (!limpio && extra.pantalla !== 'intro') hud(s);
     const enJuego = !limpio && (extra.pantalla === 'bot' || extra.pantalla === 'online');
     if (enJuego) {
       if (s.fase !== 'fin') indicadores(s, extra.seguir);
@@ -1079,7 +1122,8 @@ export function crearPintor(canvas, opciones = {}) {
         if (!extra.tactil) tecla(b, 'B', x + 18, y + 1);
       });
     }
-    if (extra.pantalla === 'menu') portada(s, extra);
+    if (extra.pantalla === 'intro') intro(s, extra.intro || {});
+    else if (extra.pantalla === 'menu') portada(s, extra);
     else if (extra.pantalla === 'ranking') pantallaRanking(extra);
     else if (extra.pantalla === 'nombre') pantallaNombre();
     else if (r && r.caido) caido();
