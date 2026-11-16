@@ -28,24 +28,45 @@ export function crearTactil() {
     botones.appendChild(b);
   }
 
-  let id = null, ox = 0, oy = 0, vx = 0, vy = 0;
+  // Palanca: se escuchan los toques de siempre (touchstart/move/end), que andan en todos los celus,
+  // y los pointer events solo para el mouse. Aparece donde apoyás el pulgar; quieta, se ve tenue abajo.
+  let activo = null, ox = 0, oy = 0, vx = 0, vy = 0;
   const RADIO = 56;
-  zona.addEventListener('pointerdown', (e) => {
-    e.preventDefault(); id = e.pointerId; try { zona.setPointerCapture(id); } catch { /* sin captura */ }
+  const reposo = () => { base.classList.remove('visible'); base.classList.add('quieta'); base.style.left = ''; base.style.top = ''; perilla.style.transform = 'translate(-50%,-50%)'; };
+  reposo();
+  function empieza(x, y) {
     const r = zona.getBoundingClientRect();
-    ox = e.clientX; oy = e.clientY; vx = vy = 0;
+    ox = x; oy = y; vx = vy = 0;
+    base.classList.remove('quieta');
     base.style.left = `${ox - r.left}px`; base.style.top = `${oy - r.top}px`; base.classList.add('visible');
     perilla.style.transform = 'translate(-50%,-50%)';
-  });
-  zona.addEventListener('pointermove', (e) => {
-    if (e.pointerId !== id) return;
-    let dx = e.clientX - ox, dy = e.clientY - oy; const d = Math.hypot(dx, dy);
+  }
+  function mueve(x, y) {
+    let dx = x - ox, dy = y - oy; const d = Math.hypot(dx, dy);
     if (d > RADIO) { dx *= RADIO / d; dy *= RADIO / d; }
     vx = dx / RADIO; vy = dy / RADIO;
     perilla.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+  }
+  function termina() { activo = null; vx = vy = 0; reposo(); }
+
+  const toque = (lista) => { for (const t of lista) if (t.identifier === activo) return t; return null; };
+  zona.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    if (activo !== null) return;
+    const t = e.changedTouches[0]; activo = t.identifier; empieza(t.clientX, t.clientY);
+  }, { passive: false });
+  zona.addEventListener('touchmove', (e) => { e.preventDefault(); const t = toque(e.changedTouches); if (t) mueve(t.clientX, t.clientY); }, { passive: false });
+  const fin = (e) => { if (toque(e.changedTouches)) termina(); };
+  zona.addEventListener('touchend', fin); zona.addEventListener('touchcancel', fin);
+
+  // mouse (para probar en la compu)
+  zona.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'touch') return;
+    e.preventDefault(); activo = 'mouse'; try { zona.setPointerCapture(e.pointerId); } catch { /* sin captura */ }
+    empieza(e.clientX, e.clientY);
   });
-  const fin = (e) => { if (e.pointerId !== id) return; id = null; vx = vy = 0; base.classList.remove('visible'); };
-  zona.addEventListener('pointerup', fin); zona.addEventListener('pointercancel', fin);
+  zona.addEventListener('pointermove', (e) => { if (e.pointerType !== 'touch' && activo === 'mouse') mueve(e.clientX, e.clientY); });
+  zona.addEventListener('pointerup', (e) => { if (e.pointerType !== 'touch' && activo === 'mouse') termina(); });
 
   // Traduce el joystick a las teclas de siempre, según para dónde mira el auto.
   // anguloCamara: cuánto está girada la pantalla (grados); la palanca se lee en la pantalla.
