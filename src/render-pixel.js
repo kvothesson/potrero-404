@@ -922,6 +922,53 @@ export function crearPintor(canvas, opciones = {}) {
     cam.ancla += (ancla - cam.ancla) * 0.1;
     cam.x = Math.round(cam.cx - VW / 2); cam.y = Math.round(cam.cy - VW / 2);
   }
+  // Referencias en el borde de la pantalla cuando algo queda afuera:
+  // la Luz Mala (siempre) y, más tenue, el arco al que tenés que patear (del color del rival).
+  function alBorde(px, py, m, arriba) {
+    const cx = BW / 2, cy = cam.ancla, dx = px - cx, dy = py - cy;
+    if (px >= m && px <= BW - m && py >= arriba && py <= BH - m) return null;
+    const tx = dx > 0 ? (BW - m - cx) / dx : dx < 0 ? (m - cx) / dx : Infinity;
+    const ty = dy > 0 ? (BH - m - cy) / dy : dy < 0 ? (arriba - cy) / dy : Infinity;
+    const t = Math.min(tx, ty);
+    return { x: cx + dx * t, y: cy + dy * t, ang: Math.atan2(dy, dx), dist: Math.hypot(dx, dy) };
+  }
+  function flechita(x, y, ang, col, largo = 5) {
+    b.fillStyle = col;
+    for (let k = 0; k < largo; k++) {
+      const ax = x + Math.cos(ang) * k, ay = y + Math.sin(ang) * k, ancho = largo - k;
+      for (let j = -ancho; j <= ancho; j++) b.fillRect(Math.round(ax - Math.sin(ang) * j * 0.5), Math.round(ay + Math.cos(ang) * j * 0.5), 1, 1);
+    }
+  }
+  function indicadores(s, seguir) {
+    if (seguir < 0 || !s.autos[seguir]) return;
+    // el arco que atacás: el azul patea al de abajo, el rojo al de arriba
+    const arcoY = seguir === 0 ? CAMPO.B + CAMPO.arcoFondo / 2 : CAMPO.T - CAMPO.arcoFondo / 2;
+    const ga = aPantalla(bx(W / 2), by(arcoY));
+    const e = alBorde(ga.x, ga.y, 16, 30);
+    const pb = aPantalla(bx(s.pelota.x), by(s.pelota.y));
+    const eb = alBorde(pb.x, pb.y, 12, 30);
+    // si la pelota y el arco quedan para el mismo lado, alcanza con la pelota
+    if (e && !(eb && Math.hypot(e.x - eb.x, e.y - eb.y) < 18)) {
+      b.globalAlpha = 0.55;
+      const col = COLOR_AUTO[1 - seguir].cuerpo;
+      // un arquito: travesaño y dos palos, y una flechita hacia afuera
+      const x = Math.round(e.x), y = Math.round(e.y);
+      b.fillStyle = P.contorno; b.fillRect(x - 6, y - 4, 13, 9);
+      b.fillStyle = col; b.fillRect(x - 5, y - 3, 11, 2); b.fillRect(x - 5, y - 3, 2, 7); b.fillRect(x + 4, y - 3, 2, 7);
+      b.fillStyle = 'rgba(255,255,255,.35)'; for (let k = -3; k <= 3; k += 2) b.fillRect(x + k, y, 1, 3);
+      flechita(x + Math.cos(e.ang) * 9, y + Math.sin(e.ang) * 9, e.ang, col, 4);
+      b.globalAlpha = 1;
+    }
+    // la Luz Mala: su dibujo en el borde, con una flecha, latiendo más rápido cuanto más cerca
+    if (eb) {
+      const late = 0.75 + 0.25 * Math.sin(s.cuadro * (0.12 + 0.25 * Math.max(0, 1 - eb.dist / 600)));
+      b.globalAlpha = late;
+      b.drawImage(pelotas[(s.cuadro >> 2) & 7], Math.round(eb.x - 6), Math.round(eb.y - 6));
+      flechita(eb.x + Math.cos(eb.ang) * 8, eb.y + Math.sin(eb.ang) * 8, eb.ang, '#b4ffd0', 5);
+      b.globalAlpha = 1;
+    }
+  }
+
   // Un punto del mundo (en píxeles del buffer) a la pantalla girada.
   function aPantalla(wx, wy) {
     const dx = wx - cam.cx, dy = wy - cam.cy, co = Math.cos(cam.ang), si = Math.sin(cam.ang);
@@ -977,6 +1024,7 @@ export function crearPintor(canvas, opciones = {}) {
     hud(s);
     const enJuego = extra.pantalla === 'bot' || extra.pantalla === 'online';
     if (enJuego) {
+      if (s.fase !== 'fin') indicadores(s, extra.seguir);
       radar(s, extra.seguir); avisoCamion(s);
       // botón de cámara a la pelota, abajo del radar: la Luz Mala prendida o apagada
       boton('camPelota', BW - 38, 74, 34, 16, extra.camPelota ? { cuerpo: '#2f8f6a', lado: '#1c5a42' } : GRIS, (x, y) => {
