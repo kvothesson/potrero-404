@@ -70,6 +70,7 @@
 </main>
 <script type="module">
 import { GOOGLE_CLIENT_ID } from '../src/cuentas-config.js';
+import { pruebaHumano } from '../src/humano.js';
 // Mismo servidor que usa el juego (ver src/red.js)
 const local = /^(localhost|127\.0\.0\.1|\[::1\])(:|$)/.test(location.host);
 const API = local ? `${location.protocol}//${location.host}` : 'https://potrero-404.kvothesson.workers.dev';
@@ -120,7 +121,7 @@ const post = async (ruta, cuerpo) => {
   } catch { return { error: 'servidor' }; }
 };
 const ERRORES = {
-  mail: 'Ese mail no parece bien escrito.', espera: 'Esperá un minuto antes de pedir otro código.',
+  humano: 'No pudimos confirmar que no sos un robot. Probá de nuevo.', mail: 'Ese mail no parece bien escrito.', espera: 'Esperá un minuto antes de pedir otro código.',
   muchos: 'Pediste muchos códigos. Probá más tarde.', envio: 'No se pudo mandar el mail. Probá en un rato.',
   codigo: 'El código no coincide.', vencido: 'El código venció o se usó demasiadas veces. Pedí otro.',
   google: 'Google no confirmó la cuenta. Probá de nuevo.', nombre: 'El nombre tiene que tener entre 2 y 16 letras o números.',
@@ -206,7 +207,7 @@ function pintarCuenta(paso = 'inicio', aviso = '', bien = false) {
     e.preventDefault();
     const mail = document.getElementById('mail').value.trim();
     const b = fm.querySelector('button'); b.disabled = true;
-    const r = await post('/mail', { mail });
+    const r = await post('/mail', { mail, humano: await pruebaHumano() });
     b.disabled = false;
     if (r.error) { pintarCuenta('inicio', ERRORES[r.error] || ERRORES.servidor); return; }
     mailEnviado = mail; pintarCuenta('codigo');

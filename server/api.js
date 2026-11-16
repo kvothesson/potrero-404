@@ -6,7 +6,7 @@
 //   POST /mail {mail}            → manda un código de 6 números a ese mail
 //   POST /entrar {google | mail+codigo, id?, llave?, nombre?} → {id, llave, nombre} (ver server/cuentas.js)
 import { registrar, verificar, tabla } from './ranking.js';
-import { pedirCodigo, entrar, cuentasDe } from './cuentas.js';
+import { pedirCodigo, entrar, cuentasDe, dentroDelLimite, verificarHumano } from './cuentas.js';
 
 const ORIGENES = ['https://kvothesson.com'];
 export function cabecerasCors(req) {
@@ -26,8 +26,12 @@ export async function api(req, { db, buscar, cuentas }) {
   const rutas = ['/registro', '/yo', '/ranking', '/buscar', '/mail', '/entrar'];
   if (!rutas.includes(url.pathname)) return null;
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cabecerasCors(req) });
+  // la conexión: en Cloudflare viene en CF-Connecting-IP; en la PC es siempre la misma
+  const ip = req.headers.get('cf-connecting-ip') || req.headers.get('x-forwarded-for') || 'local';
+  const limite = async (que) => !cuentas?.sal || await dentroDelLimite(db, cuentas.sal, que, ip);
   try {
     if (url.pathname === '/registro' && req.method === 'POST') {
+      if (!(await limite('registro'))) return json(req, { error: 'muchos' }, 429);
       const cuerpo = await req.json().catch(() => ({}));
       const r = await registrar(db, cuerpo.nombre);
       return r.error ? json(req, r, 400) : json(req, r);
@@ -38,11 +42,14 @@ export async function api(req, { db, buscar, cuentas }) {
     }
     if (url.pathname === '/mail' && req.method === 'POST') {
       const cuerpo = await req.json().catch(() => ({}));
+      if (!(await verificarHumano(cuentas, cuerpo.humano, ip))) return json(req, { error: 'humano' }, 403);
+      if (!(await limite('mail'))) return json(req, { error: 'muchos' }, 429);
       const r = await pedirCodigo(db, cuentas, cuerpo.mail);
       return json(req, r, r.error ? (r.error === 'mail' ? 400 : 429) : 200);
     }
     if (url.pathname === '/entrar' && req.method === 'POST') {
       const cuerpo = await req.json().catch(() => ({}));
+      if (!(await limite('entrar'))) return json(req, { error: 'muchos' }, 429);
       const r = await entrar(db, cuentas, cuerpo, { verificar, crearJugador: registrar });
       return json(req, r, r.error ? 400 : 200);
     }

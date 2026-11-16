@@ -1,7 +1,7 @@
 // Prueba de las cuentas (mail y Google) sobre una base en memoria: node server/prueba-cuentas.mjs
 import { DatabaseSync } from 'node:sqlite';
 import { preparar, registrar, verificar, tabla } from './ranking.js';
-import { pedirCodigo, entrar, cuentasDe, verificarGoogle } from './cuentas.js';
+import { pedirCodigo, entrar, cuentasDe, verificarGoogle, dentroDelLimite, LIMITES, verificarHumano } from './cuentas.js';
 
 const sqlite = new DatabaseSync(':memory:');
 const db = {
@@ -65,6 +65,15 @@ ok(g.id === anon.id && g.proveedor === 'google', 'Google se une al mismo jugador
 ok(JSON.stringify((await cuentasDe(db, anon.id)).sort()) === '["google","mail"]', 'el jugador tiene Google y mail');
 ok((await entrar(db, cfgG, { google: t }, ayuda)).id === anon.id, 'desde otro navegador, Google entra al mismo jugador');
 ok((await tabla(db, anon.id)).propio?.nombre === 'Anonimo' || true, 'la tabla sigue andando');
+
+// 5. Límite por conexión y anti-bots
+let pasan = 0;
+for (let k = 0; k < LIMITES.registro + 3; k++) if (await dentroDelLimite(db, 'prueba', 'registro', '1.2.3.4')) pasan++;
+ok(pasan === LIMITES.registro, `una conexión crea como mucho ${LIMITES.registro} jugadores por hora`);
+ok(await dentroDelLimite(db, 'prueba', 'registro', '5.6.7.8'), 'otra conexión no se ve afectada');
+ok(!JSON.stringify(sqlite.prepare('SELECT * FROM limites').all()).includes('1.2.3.4'), 'la IP no se guarda en la base');
+ok(await verificarHumano({}, '', 'x'), 'sin clave secreta (en la PC) no se pide la prueba anti-bots');
+ok(!(await verificarHumano({ turnstile: 'secreta' }, '', 'x')), 'con clave secreta, sin token no pasa');
 
 console.log(fallas ? `\n${fallas} fallas` : '\nTodo bien');
 process.exit(fallas ? 1 : 0);

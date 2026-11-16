@@ -56,6 +56,7 @@ const TEXTOS = {
   e_vencido: { es: 'El código venció. Pedí otro.', en: 'The code expired. Ask for a new one.', pt: 'O código expirou. Peça outro.' },
   e_google: { es: 'Google no confirmó la cuenta. Probá de nuevo.', en: "Google didn't confirm the account. Try again.", pt: 'O Google não confirmou a conta. Tente de novo.' },
   e_nombre: { es: 'De 2 a 16 letras o números.', en: '2 to 16 letters or numbers.', pt: 'De 2 a 16 letras ou números.' },
+  e_humano: { es: 'No pudimos confirmar que no sos un robot. Probá de nuevo.', en: "We couldn't confirm you're not a robot. Try again.", pt: 'Não deu para confirmar que você não é um robô. Tente de novo.' },
   e_servidor: { es: 'Algo falló. Probá de nuevo.', en: 'Something went wrong. Try again.', pt: 'Algo deu errado. Tente de novo.' },
 };
 

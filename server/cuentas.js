@@ -19,6 +19,11 @@ CREATE TABLE IF NOT EXISTS llaves (
   jugador TEXT NOT NULL,
   creado TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS limites (
+  clave TEXT PRIMARY KEY,
+  ventana INTEGER NOT NULL,
+  n INTEGER NOT NULL
+);
 CREATE TABLE IF NOT EXISTS codigos (
   huella TEXT PRIMARY KEY,
   codigo_hash TEXT NOT NULL,
@@ -89,6 +94,38 @@ export async function verificarGoogle(token, { clientId = GOOGLE_CLIENT_ID, clav
   if (!['accounts.google.com', 'https://accounts.google.com'].includes(datos.iss)) return null;
   if (!(datos.exp > ahoraS)) return null;
   return datos.sub ? String(datos.sub) : null;
+}
+
+// ---------- Límite por conexión ----------
+// Cuántas veces por hora puede hacer cada cosa una misma conexión. No se guarda la IP:
+// solo una huella con la sal secreta, que se borra sola al pasar la hora.
+export const LIMITES = { registro: 8, mail: 6, entrar: 30 };
+export async function dentroDelLimite(db, sal, que, ip) {
+  const tope = LIMITES[que];
+  if (!tope) return true;
+  const ventana = Math.floor(Date.now() / 3_600_000);
+  const clave = `${que}:${await hmac(sal, `ip:${ip || 'sin-ip'}`)}`;
+  const f = await db.una(`SELECT ventana, n FROM limites WHERE clave = ?`, clave);
+  if (f && f.ventana === ventana && f.n >= tope) return false;
+  if (f && f.ventana === ventana) await db.correr(`UPDATE limites SET n = n + 1 WHERE clave = ?`, clave);
+  else await db.correr(`INSERT OR REPLACE INTO limites (clave, ventana, n) VALUES (?, ?, 1)`, clave, ventana);
+  if (Math.random() < 0.02) await db.correr(`DELETE FROM limites WHERE ventana < ?`, ventana);   // limpieza de vez en cuando
+  return true;
+}
+
+// ---------- Anti-bots de Cloudflare (Turnstile) al pedir un código por mail ----------
+// cfg.turnstile = clave secreta; sin clave (en la PC) no se pide.
+export async function verificarHumano(cfg, token, ip) {
+  if (!cfg.turnstile) return true;
+  if (!token || typeof token !== 'string' || token.length > 2048) return false;
+  const f = new FormData();
+  f.append('secret', cfg.turnstile); f.append('response', token);
+  if (ip) f.append('remoteip', ip);
+  try {
+    const r = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', { method: 'POST', body: f });
+    const d = await r.json();
+    return !!d.success;
+  } catch { return false; }
 }
 
 // ---------- Mail: pedir un código ----------

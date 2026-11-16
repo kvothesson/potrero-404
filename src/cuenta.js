@@ -7,6 +7,7 @@
 // La lógica del servidor está en server/cuentas.js; los textos en src/idioma.js.
 import { GOOGLE_CLIENT_ID } from './cuentas-config.js';
 import { t, IDIOMA } from './idioma.js';
+import { pruebaHumano } from './humano.js';
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -95,7 +96,7 @@ export function crearCuenta({ api, obtenerYo, guardar, alCerrar }) {
         const v = f.querySelector('input').value.trim();
         try {
           if (paso === 'mail') {
-            const r = await api('/mail', { mail: v }).catch(() => ({ ok: false, datos: {} }));
+            const r = await api('/mail', { mail: v, humano: await pruebaHumano() }).catch(() => ({ ok: false, datos: {} }));
             if (r.ok) { mail = v; ir('codigo'); } else ir('mail', mensajeError(r));
           } else if (paso === 'codigo') {
             await entrar({ mail, codigo: v });
