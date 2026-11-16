@@ -280,7 +280,11 @@ function cuadro(ahora) {
   }
   const s = online() && red ? red.vista() : vista();
   const jugando = pantalla === 'bot' || online();
-  if (tactil) tactil.mostrar(jugando && !pausa);
+  if (tactil) {
+    tactil.mostrar(jugando && !pausa);
+    const yoAuto = s && aQuienSigo() >= 0 ? s.autos[aQuienSigo()] : null;
+    if (yoAuto) tactil.nitro(yoAuto.nitro);
+  }
   sonido.motores(!jugando || pausa || !s ? null : s);
   pintor.dibujar(s || estado, extras());
   requestAnimationFrame(cuadro);

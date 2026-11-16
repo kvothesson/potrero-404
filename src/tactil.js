@@ -1,6 +1,7 @@
 // Controles para celular: un joystick que aparece donde apoyás el pulgar izquierdo
 // (el auto va para donde apuntás) y tres botones a la derecha: nitro, salto y freno de mano.
 import { icono } from './fuente.js';
+import { t } from './idioma.js';
 
 export const esTactil = () => matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
 
@@ -22,6 +23,7 @@ export function crearTactil() {
   for (const [clave, ic] of [['freno', 'derrape'], ['salto', 'salto'], ['nitro', 'nitro']]) {
     const b = document.createElement('button'); b.className = `boton ${clave}`; b.setAttribute('aria-label', clave);
     b.appendChild(botonIcono(ic));
+    const etq = document.createElement('span'); etq.className = 'etq'; etq.textContent = t(ic === 'derrape' ? 'derrape' : ic); b.appendChild(etq);
     const soltar = () => { apretado[clave] = false; b.classList.remove('activo'); };
     b.addEventListener('pointerdown', (e) => { e.preventDefault(); try { b.setPointerCapture(e.pointerId); } catch { /* sin captura */ } apretado[clave] = true; b.classList.add('activo'); navigator.vibrate?.(8); });
     b.addEventListener('pointerup', soltar); b.addEventListener('pointercancel', soltar); b.addEventListener('lostpointercapture', soltar);
@@ -31,12 +33,13 @@ export function crearTactil() {
   // Palanca: se escuchan los toques de siempre (touchstart/move/end), que andan en todos los celus,
   // y los pointer events solo para el mouse. Aparece donde apoyás el pulgar; quieta, se ve tenue abajo.
   let activo = null, ox = 0, oy = 0, vx = 0, vy = 0;
-  const RADIO = 56;
+  let RADIO = 56;
   const reposo = () => { base.classList.remove('visible'); base.classList.add('quieta'); base.style.left = ''; base.style.top = ''; perilla.style.transform = 'translate(-50%,-50%)'; };
   reposo();
   function empieza(x, y) {
     const r = zona.getBoundingClientRect();
     ox = x; oy = y; vx = vy = 0;
+    RADIO = Math.max(40, base.offsetWidth * 0.45 || 56);
     base.classList.remove('quieta');
     base.style.left = `${ox - r.left}px`; base.style.top = `${oy - r.top}px`; base.classList.add('visible');
     perilla.style.transform = 'translate(-50%,-50%)';
@@ -81,5 +84,13 @@ export function crearTactil() {
     if (dif > 5) e.right = true; else if (dif < -5) e.left = true;
     return e;
   }
-  return { leer, mostrar: (si) => capa.classList.toggle('oculto', !si) };
+  // el aro del botón de nitro muestra cuánto te queda; vacío se apaga
+  const bNitro = botones.querySelector('.nitro');
+  let nitroAntes = -1;
+  function nitro(n) {
+    const v = Math.round(Math.max(0, Math.min(100, n)));
+    if (v === nitroAntes) return;
+    nitroAntes = v; bNitro.style.setProperty('--n', v); bNitro.classList.toggle('vacio', v < 1);
+  }
+  return { leer, nitro, mostrar: (si) => capa.classList.toggle('oculto', !si) };
 }

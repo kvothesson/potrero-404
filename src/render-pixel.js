@@ -15,9 +15,14 @@ let BW = 272, BH = 400;
 const K = 0.5;
 function medidas() {
   const a = window.innerWidth / Math.max(1, window.innerHeight);
-  if (a <= 1.15) return [272, 400];
-  // acostado: un alto cercano a 256 que entre justo en la pantalla con escala entera, así ocupa todo el alto
   const dpr = window.devicePixelRatio || 1, alto = window.innerHeight * dpr, ancho = window.innerWidth * dpr;
+  // parado: un ancho cercano a 272 que llene justo la pantalla con escala entera, y el alto que pida (400 a 480)
+  if (a <= 1.15) {
+    const k = Math.max(1, Math.round(ancho / 272));
+    const bw = Math.max(240, Math.min(300, Math.floor(ancho / k)));
+    return [bw, Math.max(400, Math.min(480, Math.floor(alto / k)))];
+  }
+  // acostado: un alto cercano a 256 que entre justo en la pantalla con escala entera, así ocupa todo el alto
   const k = Math.max(1, Math.round(alto / 256));
   const bh = Math.max(224, Math.min(300, Math.floor(alto / k)));
   const bw = Math.max(360, Math.min(500, Math.floor(ancho / k)));
@@ -25,7 +30,7 @@ function medidas() {
 }
 // La cámara gira (como el Mode 7 de la Super Nintendo): el mundo se dibuja en un cuadrado VW×VW
 // centrado en tu auto y después se pega girado en la pantalla, con tu auto siempre mirando arriba.
-const VW = 720;
+const VW = 780;
 const anclaY = () => Math.round(BH * (BW > BH ? 0.66 : 0.64));
 // margen de escenario alrededor de la cancha: lo bastante grande para que, con la cámara que gira,
 // nunca se vea dónde termina el mundo aunque vayas pegado a una esquina
@@ -491,7 +496,7 @@ export function crearPintor(canvas, opciones = {}) {
     octx.setTransform(1, 0, 0, 1, 0, 0);
     octx.globalCompositeOperation = 'source-over';
     octx.clearRect(0, 0, VW, VW);
-    octx.fillStyle = 'rgba(6,8,22,.6)'; octx.fillRect(0, 0, VW, VW);
+    octx.fillStyle = 'rgba(6,8,22,.48)'; octx.fillRect(0, 0, VW, VW);
     octx.setTransform(1, 0, 0, 1, -cam.x, -cam.y);
     octx.globalCompositeOperation = 'destination-out';
     const aro = (x, y, r, a) => { octx.fillStyle = `rgba(0,0,0,${a})`; octx.beginPath(); octx.arc(Math.round(x), Math.round(y), r, 0, Math.PI * 2); octx.fill(); };
@@ -775,14 +780,14 @@ export function crearPintor(canvas, opciones = {}) {
     }
 
     // título: POTRERO 404, con el 404 que cada tanto se corre como un píxel muerto
-    const ty = 30;
-    texto(b, 'POTRERO 404', BW / 2 + 2, ty + 2, { esc: 4, alinear: 'centro', color: '#ffb030', sombra: '#7a2a10' });
-    texto(b, 'POTRERO 404', BW / 2, ty, { esc: 4, alinear: 'centro', color: '#fff4b0', sombra: null });
-    const x404 = BW / 2 - (11 * 24 - 4) / 2 + 8 * 24;
+    const ty = 30, te = BW >= 272 ? 4 : 3;
+    texto(b, 'POTRERO 404', BW / 2 + 2, ty + 2, { esc: te, alinear: 'centro', color: '#ffb030', sombra: '#7a2a10' });
+    texto(b, 'POTRERO 404', BW / 2, ty, { esc: te, alinear: 'centro', color: '#fff4b0', sombra: null });
+    const x404 = BW / 2 - (11 * 6 * te - te) / 2 + 8 * 6 * te;
     if ((s.cuadro % 150) < 10) {
-      texto(b, '404', x404 - 3, ty, { esc: 4, color: 'rgba(255,40,90,.85)', sombra: null });
-      texto(b, '404', x404 + 3, ty + 1, { esc: 4, color: 'rgba(40,220,255,.85)', sombra: null });
-      texto(b, '404', x404, ty, { esc: 4, color: '#fff4b0', sombra: null });
+      texto(b, '404', x404 - 3, ty, { esc: te, color: 'rgba(255,40,90,.85)', sombra: null });
+      texto(b, '404', x404 + 3, ty + 1, { esc: te, color: 'rgba(40,220,255,.85)', sombra: null });
+      texto(b, '404', x404, ty, { esc: te, color: '#fff4b0', sombra: null });
     }
 
     // columnas: en vertical todo apilado; en horizontal, dos columnas
@@ -827,8 +832,32 @@ export function crearPintor(canvas, opciones = {}) {
       fila(yc + 78, 'salto', t('salto'), [['E', 13], ['⏎', 21]]);
       fila(yc + 102, 'pausa', t('pausa'), [['ESC', 21]]);
       yc += 130;
+    } else {
+      // en el celu: palanca a la izquierda para manejar, botones redondos a la derecha
+      b.fillStyle = '#2a2448'; b.fillRect(cx, yc, cw, 100);
+      const circulo = (x, y, r, col) => { b.fillStyle = P.contorno; b.beginPath(); b.arc(x, y, r + 1, 0, 7); b.fill(); b.fillStyle = col; b.beginPath(); b.arc(x, y, r, 0, 7); b.fill(); };
+      const fila = (yy, dibujo, nombre) => { dibujo(cx + 14, yy + 6); texto(b, nombre, cx + 30, yy + 3, { color: '#c8c2ea' }); };
+      fila(yc + 6, (x, y) => { circulo(x, y, 8, '#3a3456'); circulo(x + 2, y - 2, 4, '#9890b8'); }, t('mover'));
+      fila(yc + 30, (x, y) => { circulo(x, y, 8, '#4a4470'); icono(b, 'derrape', x - 4, y - 4); }, t('derrape'));
+      fila(yc + 54, (x, y) => { circulo(x, y, 8, '#e07818'); icono(b, 'nitro', x - 4, y - 4); }, t('nitro'));
+      fila(yc + 78, (x, y) => { circulo(x, y, 8, '#4a4470'); icono(b, 'salto', x - 4, y - 4); }, t('salto'));
+      // dónde va cada cosa en la pantalla
+      // un celu dibujado: parado si la pantalla está parada, acostado si está acostada
+      const pw = ancho ? 76 : 40, ph = ancho ? 44 : 72, mx = cx + cw - pw - 6, my = yc + (100 - ph) / 2;
+      b.fillStyle = '#1c1830'; b.fillRect(mx, my, pw, ph);
+      circulo(mx + 10, my + ph - 12, 6, '#3a3456');
+      circulo(mx + pw - 9, my + ph - 10, 5, '#e07818'); circulo(mx + pw - 19, my + ph - 10, 4, '#4a4470'); circulo(mx + pw - 9, my + ph - 21, 4, '#4a4470');
+      yc += 106;
     }
     if (!colB) y = yc; else y = Math.max(y, yc);
+    // celu parado: se juega mejor acostado
+    if (extra.tactil && !ancho) {
+      const gy0 = BH - 58;
+      b.fillStyle = 'rgba(255,244,176,.1)'; b.fillRect(12, gy0, BW - 24, 18);
+      texto(b, t('girar'), BW / 2 + 8, gy0 + 6, { alinear: 'centro', color: '#fff4b0' });
+      const ex = BW / 2 - t('girar').length * 3 - 8;
+      b.fillStyle = '#fff4b0'; b.fillRect(ex, gy0 + 4, 6, 10); b.fillStyle = '#2a2448'; b.fillRect(ex + 1, gy0 + 5, 4, 8);
+    }
 
     // se gana con 3 goles
     const gy = colB ? yc + 2 : y + 2;
@@ -1033,8 +1062,9 @@ export function crearPintor(canvas, opciones = {}) {
       if (s.fase !== 'fin') indicadores(s, extra.seguir);
       radar(s, extra.seguir); avisoCamion(s);
       // botón de cámara a la pelota, abajo del radar: la Luz Mala prendida o apagada
-      boton('camPelota', BW - 38, 74, 34, 16, extra.camPelota ? { cuerpo: '#2f8f6a', lado: '#1c5a42' } : GRIS, (x, y) => {
-        b.globalAlpha = extra.camPelota ? 1 : 0.4; b.drawImage(pelotas[0], x + 3, y + 1); b.globalAlpha = 1;
+      const cw = extra.tactil ? 38 : 34, ch = extra.tactil ? 22 : 16;
+      boton('camPelota', BW - cw - 4, 74, cw, ch, extra.camPelota ? { cuerpo: '#2f8f6a', lado: '#1c5a42' } : GRIS, (x, y) => {
+        b.globalAlpha = extra.camPelota ? 1 : 0.4; b.drawImage(pelotas[0], x + (cw - 13) / 2, y + (ch - 13) / 2); b.globalAlpha = 1;
         if (!extra.tactil) tecla(b, 'B', x + 18, y + 1);
       });
     }
@@ -1052,8 +1082,8 @@ export function crearPintor(canvas, opciones = {}) {
       else if (s.fase === 'gol' || s.fase === 'fin') cartelFinal(s, extra);
       // en el celu, botón para pausar (o salir, si es online) arriba a la izquierda
       if (extra.tactil && !extra.pausa) {
-        if (r) boton('menu', 4, 2, 22, 16, GRIS, (x, y) => icono(b, 'casa', x + 6, y + 3));
-        else boton('pausa', 4, 2, 22, 16, GRIS, (x, y) => icono(b, 'pausa', x + 6, y + 3));
+        if (r) boton('menu', 4, 3, 30, 24, GRIS, (x, y) => icono(b, 'casa', x + 6, y + 3, 2));
+        else boton('pausa', 4, 3, 30, 24, GRIS, (x, y) => icono(b, 'pausa', x + 6, y + 3, 2));
       }
     }
     // a pantalla, escala entera y sin suavizado; temblor de cámara en golpes y goles
