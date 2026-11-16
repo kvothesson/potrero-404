@@ -28,8 +28,8 @@ export async function pruebaHumano(lugar) {
     const id = ts.render(caja, {
       sitekey: TURNSTILE_SITE_KEY, appearance: 'interaction-only', size: 'flexible',
       language: ({ pt: 'pt-br' })[document.documentElement.lang] || document.documentElement.lang || 'auto',
-      callback: fin, 'error-callback': () => { fin(''); return true; }, 'expired-callback': () => fin(''),
+      callback: fin, 'expired-callback': () => fin(''),   // si falla, Turnstile reintenta solo
     });
-    setTimeout(() => fin(''), 120000);   // si en dos minutos no se resolvió, se corta
+    setTimeout(() => fin(''), 60000);   // si en un minuto no se resolvió, se corta
   });
 }
