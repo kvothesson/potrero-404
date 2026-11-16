@@ -1,6 +1,7 @@
 // Pintor en pixel art con aspecto de Super Nintendo: todo se dibuja en un buffer chico
 // (272x400) con paleta limitada, contornos de 1 píxel y vista de tres cuartos, y después
 // se agranda a escala entera sin suavizado. Solo lee el estado; nunca lo cambia.
+import { t } from './idioma.js';
 import { W, H, CAMPO, AUTOS, GOLES_PARA_GANAR, FPS, paredes } from './sim.js';
 import { texto, icono, tecla } from './fuente.js';
 import { CANCHAS, hash } from './canchas.js';
@@ -734,82 +735,92 @@ export function crearPintor(canvas, opciones = {}) {
   }
 
   function portada(s, extra) {
-    b.fillStyle = 'rgba(20,15,34,.84)'; b.fillRect(0, 0, BW, BH);
+    b.fillStyle = 'rgba(20,15,34,.86)'; b.fillRect(0, 0, BW, BH);
+    const ancho = BW > BH;   // pantalla horizontal: modos a la izquierda, controles a la derecha
+
+    // tu cuenta, arriba a la derecha: tu nombre (con ✓ si entraste con Google o mail) o "ENTRAR"
+    {
+      const nombre = extra.yo ? extra.yo.nombre : t('entrarCanvas');
+      const unida = extra.yo && extra.yo.cuentas && extra.yo.cuentas.length;
+      const w = 20 + nombre.length * 6 + (unida ? 10 : 0);
+      boton('cuenta', BW - w - 4, 4, w, 18, extra.yo ? GRIS : { cuerpo: '#2f8f6a', lado: '#1c5a42' }, (x, y) => {
+        icono(b, 'persona', x + 5, y + 4);
+        texto(b, nombre, x + 17, y + 5, { color: extra.yo ? '#c8f4ff' : '#fff' });
+        if (unida) icono(b, 'tilde', x + w - 13, y + 4);
+      });
+    }
+
     // título: POTRERO 404, con el 404 que cada tanto se corre como un píxel muerto
-    texto(b, 'POTRERO 404', BW / 2 + 2, 30, { esc: 4, alinear: 'centro', color: '#ffb030', sombra: '#7a2a10' });
-    texto(b, 'POTRERO 404', BW / 2, 28, { esc: 4, alinear: 'centro', color: '#fff4b0', sombra: null });
+    const ty = 30;
+    texto(b, 'POTRERO 404', BW / 2 + 2, ty + 2, { esc: 4, alinear: 'centro', color: '#ffb030', sombra: '#7a2a10' });
+    texto(b, 'POTRERO 404', BW / 2, ty, { esc: 4, alinear: 'centro', color: '#fff4b0', sombra: null });
     const x404 = BW / 2 - (11 * 24 - 4) / 2 + 8 * 24;
     if ((s.cuadro % 150) < 10) {
-      texto(b, '404', x404 - 3, 28, { esc: 4, color: 'rgba(255,40,90,.85)', sombra: null });
-      texto(b, '404', x404 + 3, 29, { esc: 4, color: 'rgba(40,220,255,.85)', sombra: null });
-      texto(b, '404', x404, 28, { esc: 4, color: '#fff4b0', sombra: null });
+      texto(b, '404', x404 - 3, ty, { esc: 4, color: 'rgba(255,40,90,.85)', sombra: null });
+      texto(b, '404', x404 + 3, ty + 1, { esc: 4, color: 'rgba(40,220,255,.85)', sombra: null });
+      texto(b, '404', x404, ty, { esc: 4, color: '#fff4b0', sombra: null });
     }
-    texto(b, '2016 → 2026', BW / 2, 74, { alinear: 'centro', color: '#9890c0' });
 
+    // columnas: en vertical todo apilado; en horizontal, dos columnas
+    const m = 12;
+    const colA = ancho ? { x: m, w: Math.round(BW / 2) - m - 6, y: 70 } : { x: m, w: BW - 2 * m, y: 72 };
+    const colB = ancho ? { x: Math.round(BW / 2) + 6, w: Math.round(BW / 2) - m - 6, y: 70 } : null;
+
+    // los tres modos, con nombre y qué es cada uno
+    const modos = [
+      ['bot', GRIS, t('practica'), t('practicaSub')],
+      ['online', { cuerpo: '#2f8f6a', lado: '#1c5a42' }, t('online'), t('onlineSub')],
+      ['amigo', { cuerpo: '#4a4a9a', lado: '#2a2a62' }, t('amigo'), t('amigoSub')],
+    ];
+    const alto = 36, sep = 7;
+    modos.forEach(([id, col, titulo, sub], k) => {
+      const y = colA.y + k * (alto + sep);
+      boton(id, colA.x, y, colA.w, alto, col, (x, yy) => {
+        texto(b, titulo, x + 8, yy + 6, { esc: 2, color: '#fff' });
+        texto(b, sub, x + 8, yy + 24, { color: '#e0dcf6', sombra: null });
+        if (!extra.tactil) tecla(b, String(k + 1), x + colA.w - 18, yy + 6);
+      });
+    });
+    let y = colA.y + 3 * (alto + sep) + 2;
+
+    // controles (en la compu); en el celu los botones de la pantalla ya muestran qué hacen
+    const cx = colB ? colB.x : colA.x, cw = colB ? colB.w : colA.w;
+    let yc = colB ? colB.y : y + 4;
     if (!extra.tactil) {
-      // un jugador por compu: se maneja con W A S D o con las flechas, lo que quede cómodo
-      b.fillStyle = '#2a2448'; b.fillRect(14, 90, BW - 28, 168);
-      autoChico(0, BW / 2, 106, ANGULOS * 3 / 4);
-      const cruz = (cx, t) => { tecla(b, t[0], cx - 7, 124); tecla(b, t[1], cx - 23, 140); tecla(b, t[2], cx - 7, 140); tecla(b, t[3], cx + 9, 140); };
-      cruz(BW / 2 - 50, ['W', 'A', 'S', 'D']);
-      texto(b, '/', BW / 2, 140, { alinear: 'centro', color: '#9890b8' });
-      cruz(BW / 2 + 50, ['↑', '←', '↓', '→']);
-      const fila = (y, nombre, a, aw, c, cw) => {
-        icono(b, nombre, BW / 2 - 78, y + 2); icono(b, 'flecha', BW / 2 - 62, y + 2);
-        tecla(b, a, BW / 2 - 46, y, aw); texto(b, '/', BW / 2 - 40 + aw + 2, y + 3, { color: '#9890b8' }); tecla(b, c, BW / 2 - 28 + aw + 6, y, cw);
+      b.fillStyle = '#2a2448'; b.fillRect(cx, yc, cw, 100);
+      const fila = (yy, ic, nombre, teclas) => {
+        icono(b, ic, cx + 6, yy + 2);
+        texto(b, nombre, cx + 20, yy + 3, { color: '#c8c2ea' });
+        let x = cx + cw - 6;
+        for (let i = teclas.length - 1; i >= 0; i--) {
+          const [et, w] = teclas[i];
+          x -= w; tecla(b, et, x, yy, w); x -= 4;
+        }
       };
-      fila(170, 'derrape', '⇧', 21, 'C', 13);
-      fila(196, 'nitro', '', 40, 'CTRL', 29);
-      fila(222, 'salto', 'E', 13, '⏎', 21);
-    } else {
-      // en el celu: palanca a la izquierda maneja, botones a la derecha
-      b.fillStyle = '#2a2448'; b.fillRect(14, 90, BW - 28, 168);
-      icono(b, 'palanca', 40, 120, 4);
-      icono(b, 'flecha', 84, 140, 2);
-      autoChico(0, 120, 150, 0);
-      [['derrape', 112], ['salto', 160], ['nitro', 208]].forEach(([ic, y]) => {
-        b.fillStyle = P.contorno; b.beginPath(); b.arc(196, y, 18, 0, Math.PI * 2); b.fill();
-        b.fillStyle = '#4a4470'; b.beginPath(); b.arc(196, y, 17, 0, Math.PI * 2); b.fill();
-        icono(b, ic, 187, y - 9, 2);
-      });
+      fila(yc + 6, 'flecha', t('mover'), [['WASD', 29], ['↑↓←→', 29]]);
+      fila(yc + 30, 'derrape', t('derrape'), [['⇧', 21], ['C', 13]]);
+      fila(yc + 54, 'nitro', t('nitro'), [['', 30], ['CTRL', 29]]);
+      fila(yc + 78, 'salto', t('salto'), [['E', 13], ['⏎', 21]]);
+      yc += 106;
     }
+    if (!colB) y = yc; else y = Math.max(y, yc);
 
-    // se gana con 3 goles: tres pelotas y el trofeo
-    for (let k = 0; k < GOLES_PARA_GANAR; k++) b.drawImage(pelotas[(k * 3 + (s.cuadro >> 3)) & 7], BW / 2 - 46 + k * 16, 266);
-    icono(b, 'flecha', BW / 2 + 2, 268); icono(b, 'trofeo', BW / 2 + 16, 266, 2);
+    // se gana con 3 goles
+    const gy = colB ? yc + 2 : y + 2;
+    const gx = colB ? cx + cw / 2 : BW / 2;
+    texto(b, t('gana'), gx, gy, { alinear: 'centro', color: '#fff4b0' });
+    for (let k = 0; k < GOLES_PARA_GANAR; k++) b.drawImage(pelotas[(k * 3 + (s.cuadro >> 3)) & 7], gx - 30 + k * 16, gy + 11);
+    icono(b, 'flecha', gx + 18, gy + 13); icono(b, 'trofeo', gx + 30, gy + 11, 2);
 
-    // un jugador por compu: contra la máquina (práctica), online con Elo, sala con amigos (sin Elo)
-    const modos = [['bot', GRIS], ['online', { cuerpo: '#2f8f6a', lado: '#1c5a42' }], ['amigo', { cuerpo: '#4a4a9a', lado: '#2a2a62' }]];
-    const w = 78, sep = 8, total = modos.length * w + (modos.length - 1) * sep;
-    modos.forEach(([id, col], k) => {
-      boton(id, BW / 2 - total / 2 + k * (w + sep), 290, w, 52, col, (x, y) => {
-        // VOS contra: la máquina / alguien del mundo (y suma al ranking) / un amigo con un link
-        const vs = (yy) => texto(b, 'VS', x + w / 2, yy, { alinear: 'centro', color: '#fff4b0', sombra: P.contorno });
-        if (id === 'bot') { autoChico(0, x + 16, y + 22, ANGULOS * 3 / 4); vs(y + 19); icono(b, 'robot', x + 50, y + 8, 3); }
-        if (id === 'online') { autoChico(0, x + 16, y + 22, ANGULOS * 3 / 4); vs(y + 19); icono(b, 'persona', x + 50, y + 6, 2); icono(b, 'globo', x + 52, y + 26, 2); icono(b, 'trofeo', x + 4, y + 40); }
-        if (id === 'amigo') { icono(b, 'persona', x + 6, y + 8, 3); icono(b, 'cadena', x + 33, y + 16, 2); icono(b, 'persona', x + 48, y + 8, 3); }
-        if (!extra.tactil) tecla(b, String(k + 1), x + w - 16, y - 7);
-      });
+    // ranking, sonido y pausa abajo
+    const rw = 22 + t('ranking').length * 6;
+    boton('ranking', BW / 2 - rw / 2, BH - 26, rw, 18, { cuerpo: '#7a5a20', lado: '#4a3410' }, (x, yy) => {
+      icono(b, 'trofeo', x + 5, yy + 3);
+      texto(b, t('ranking'), x + 17, yy + 5, { color: '#fff' });
+      if (!extra.tactil) tecla(b, '4', x + rw - 6, yy - 9);
     });
-    // ranking, con tu nombre al lado si ya tenés
-    boton('ranking', BW / 2 - 22, BH - 30, 44, 22, { cuerpo: '#7a5a20', lado: '#4a3410' }, (x, y) => {
-      icono(b, 'trofeo', x + 8, y + 4); icono(b, 'flecha', x + 18, y + 6); icono(b, 'robot', x + 28, y + 4);
-      if (!extra.tactil) tecla(b, '4', x + 44 - 8, y - 9);
-    });
-    // tu cuenta: tu nombre (con ✓ si entraste con Google o mail) o una persona para entrar
-    {
-      const nombre = extra.yo ? extra.yo.nombre : '';
-      const unida = extra.yo && extra.yo.cuentas && extra.yo.cuentas.length;
-      const ancho = Math.max(30, 20 + nombre.length * 6 + (unida ? 10 : 0));
-      boton('cuenta', BW - ancho - 4, 4, ancho, 20, GRIS, (x, y) => {
-        icono(b, 'persona', x + 5, y + 4);
-        if (nombre) texto(b, nombre, x + 17, y + 6, { color: '#c8f4ff' });
-        else texto(b, '?', x + 18, y + 6, { color: '#fff4b0' });
-        if (unida) icono(b, 'tilde', x + ancho - 13, y + 4);
-      });
-    }
     if (!extra.tactil) { tecla(b, 'ESC', 8, BH - 22, 21); icono(b, 'pausa', 32, BH - 20); }
-    boton('sonido', BW - 30, BH - 26, 22, 18, GRIS, (x, y) => { icono(b, 'sonido', x + 7, y + 4); });
+    boton('sonido', BW - 30, BH - 26, 22, 18, GRIS, (x, yy) => { icono(b, 'sonido', x + 7, yy + 4); });
     if (!extra.tactil) tecla(b, 'M', BW - 48, BH - 24);
   }
 

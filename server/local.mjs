@@ -42,12 +42,19 @@ const cuentas = {
 const http = createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
   // API del ranking
-  const cuerpo = req.method === 'POST' ? await new Promise((ok) => { let d = ''; req.on('data', (c) => { d += c; if (d.length > 4096) req.destroy(); }); req.on('end', () => ok(d)); }) : undefined;
+  const cuerpo = req.method === 'POST' ? await new Promise((ok) => { let d = ''; req.on('data', (c) => { d += c; if (d.length > (url.pathname === '/captura' ? 4e6 : 4096)) req.destroy(); }); req.on('end', () => ok(d)); }) : undefined;
   const respuesta = await api(new Request(url, { method: req.method, headers: req.headers, body: cuerpo }), { db, buscar: () => buscar(), cuentas });
   if (respuesta) {
     res.writeHead(respuesta.status, Object.fromEntries(respuesta.headers));
     res.end(await respuesta.text());
     return;
+  }
+  // solo en la PC: guardar una captura del juego (POST /captura?n=nombre con un PNG en data URL)
+  if (url.pathname === '/captura' && req.method === 'POST') {
+    const n = (url.searchParams.get('n') || 'captura').replace(/[^a-z0-9_-]/gi, '');
+    const { writeFile } = await import('node:fs/promises');
+    await writeFile(fileURLToPath(new URL(`./datos/${n}.png`, import.meta.url)), Buffer.from(cuerpo.split(',')[1], 'base64'));
+    res.writeHead(204).end(); return;
   }
   // archivos del juego
   let ruta = decodeURIComponent(url.pathname);

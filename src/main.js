@@ -39,7 +39,7 @@ async function api(ruta, cuerpo) {
   return { ok: r.ok, status: r.status, datos };
 }
 // Quién sos: entrar con Google, con un código por mail, o como invitado (solo un nombre).
-const cuenta = crearCuenta({ api, obtenerYo: () => yo, guardar: (y) => { yo = y; guardarYo(y); } });
+const cuenta = crearCuenta({ api, obtenerYo: () => yo, guardar: (y) => { yo = y; guardarYo(y); }, alCerrar: () => { pantalla = 'menu'; } });
 cuenta.refrescar();
 function abrirCuenta(despues) {
   if (red) { red.cerrar(); red = null; }
