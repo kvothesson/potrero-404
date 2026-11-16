@@ -25,9 +25,11 @@ function medidas() {
 }
 // La cámara gira (como el Mode 7 de la Super Nintendo): el mundo se dibuja en un cuadrado VW×VW
 // centrado en tu auto y después se pega girado en la pantalla, con tu auto siempre mirando arriba.
-const VW = 640;
+const VW = 720;
 const anclaY = () => Math.round(BH * (BW > BH ? 0.66 : 0.64));
-const OX = 70, OY = 60;                                     // margen de escenario alrededor de la cancha
+// margen de escenario alrededor de la cancha: lo bastante grande para que, con la cámara que gira,
+// nunca se vea dónde termina el mundo aunque vayas pegado a una esquina
+const OX = 350, OY = 310;
 const WW = Math.round(W * K) + OX * 2, WH = Math.round(H * K) + OY * 2;
 const bx = (x) => OX + x * K, by = (y) => OY + y * K;
 
@@ -164,7 +166,10 @@ function fondoFijo(cancha) {
     return ok;
   };
   const M = new Uint8Array(WW * WH);
-  for (let y = 0; y < WH; y++) for (let x = 0; x < WW; x++) M[y * WW + x] = adentro(x + 0.5, y + 0.5) ? 1 : 0;
+  // solo se prueba dentro del rectángulo de la cancha (el mundo ahora es mucho más grande)
+  const xs = poly.map((p) => p[0]), ys = poly.map((p) => p[1]);
+  const x0 = Math.floor(Math.min(...xs)) - 1, x1 = Math.ceil(Math.max(...xs)) + 1, y0 = Math.floor(Math.min(...ys)) - 1, y1 = Math.ceil(Math.max(...ys)) + 1;
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) M[y * WW + x] = adentro(x + 0.5, y + 0.5) ? 1 : 0;
   const m = (x, y) => (x < 0 || y < 0 || x >= WW || y >= WH ? 0 : M[y * WW + x]);
   const pon = (x, y, c) => { const i = (y * WW + x) * 4; d[i] = c[0]; d[i + 1] = c[1]; d[i + 2] = c[2]; d[i + 3] = 255; };
 
@@ -183,7 +188,7 @@ function fondoFijo(cancha) {
     if (x >= X0 && x <= X1 && (y === HT || y === HB)) return true;
     return false;
   };
-  const info = { BW: WW, BH: WH, OY, cx: Math.round(cx), ruta0: Math.round(bx(CAMPO.L)), ruta1: Math.round(bx(CAMPO.R)) };
+  const info = { BW: WW, BH: WH, OY, OX, cx: Math.round(cx), ruta0: Math.round(bx(CAMPO.L)), ruta1: Math.round(bx(CAMPO.R)) };
 
   for (let y = 0; y < WH; y++) for (let x = 0; x < WW; x++) {
     const px = x + 0.5, py = y + 0.5;
@@ -205,6 +210,7 @@ function fondoFijo(cancha) {
     pon(x, y, cancha.color(cat, x, y, info));
   }
   g.putImageData(img, 0, 0);
+  if (cancha.decorar) cancha.decorar(g, info);
   // palos con el color de quien defiende
   [[T, COLOR_AUTO[0]], [B, COLOR_AUTO[1]]].forEach(([y, col]) => {
     [g0, g1].forEach((x) => { g.fillStyle = P.contorno; g.fillRect(Math.round(x) - 2, Math.round(y) - 2, 5, 5); g.fillStyle = col.cuerpo; g.fillRect(Math.round(x) - 1, Math.round(y) - 1, 3, 3); });
