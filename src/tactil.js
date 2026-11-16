@@ -23,7 +23,7 @@ export function crearTactil() {
     const b = document.createElement('button'); b.className = `boton ${clave}`; b.setAttribute('aria-label', clave);
     b.appendChild(botonIcono(ic));
     const soltar = () => { apretado[clave] = false; b.classList.remove('activo'); };
-    b.addEventListener('pointerdown', (e) => { e.preventDefault(); b.setPointerCapture(e.pointerId); apretado[clave] = true; b.classList.add('activo'); navigator.vibrate?.(8); });
+    b.addEventListener('pointerdown', (e) => { e.preventDefault(); try { b.setPointerCapture(e.pointerId); } catch { /* sin captura */ } apretado[clave] = true; b.classList.add('activo'); navigator.vibrate?.(8); });
     b.addEventListener('pointerup', soltar); b.addEventListener('pointercancel', soltar); b.addEventListener('lostpointercapture', soltar);
     botones.appendChild(b);
   }
@@ -31,7 +31,7 @@ export function crearTactil() {
   let id = null, ox = 0, oy = 0, vx = 0, vy = 0;
   const RADIO = 56;
   zona.addEventListener('pointerdown', (e) => {
-    e.preventDefault(); id = e.pointerId; zona.setPointerCapture(id);
+    e.preventDefault(); id = e.pointerId; try { zona.setPointerCapture(id); } catch { /* sin captura */ }
     const r = zona.getBoundingClientRect();
     ox = e.clientX; oy = e.clientY; vx = vy = 0;
     base.style.left = `${ox - r.left}px`; base.style.top = `${oy - r.top}px`; base.classList.add('visible');

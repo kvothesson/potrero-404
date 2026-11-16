@@ -14,6 +14,8 @@
   body { display: grid; place-items: center; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
   body.tactil { place-items: start center; padding-top: env(safe-area-inset-top); }
   canvas { display: block; image-rendering: pixelated; outline: none; }
+  /* en iPhone, sin esto no se puede escribir en los campos (el body bloquea la selección de texto) */
+  input, #cuenta, #entrada { -webkit-user-select: text; user-select: text; touch-action: manipulation; }
 
   /* controles táctiles */
   #tactil { position: fixed; inset: 0; pointer-events: none; z-index: 2; }

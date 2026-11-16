@@ -294,5 +294,6 @@ if (params.get('sala')) empezar('amigo');
 window.potrero = {
   get estado() { return vista() || estado; }, get red() { return red; }, get pantalla() { return pantalla; },
   paso: (e) => paso(estado, e), empezar: (m = 'bot') => empezar(m), menu: volverAlMenu, ranking: verRanking,
+  leerPropio: () => leerPropio(vista() && vista().autos[Math.max(0, aQuienSigo())]),
   dibujar: () => pintor.dibujar((online() && red ? red.vista() : vista()) || estado, extras()),
 };
