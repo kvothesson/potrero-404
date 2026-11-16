@@ -149,7 +149,7 @@ async function traerCuentas() {
   if (!yo?.id) return;
   try {
     const r = await fetch(`${API}/yo?id=${encodeURIComponent(yo.id)}&llave=${encodeURIComponent(yo.llave)}`);
-    if (r.status === 401) { guardar(null); return; }
+    if (!r.ok) return; // nunca borrar tu identidad por un error: solo no mostrar las cuentas
     const d = await r.json(); cuentas = d.cuentas || []; yo.nombre = d.nombre;
   } catch { /* sin red */ }
 }
