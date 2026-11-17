@@ -509,6 +509,38 @@ export function crearPintor(canvas, opciones = {}) {
   }
 
   // Noche: todo oscuro salvo la Luz Mala, los faros y un poco alrededor de cada auto.
+  // Luces suaves: se arman una sola vez (degradés sin escalones) y después se estampan.
+  // Un halo redondo y un cono de faro, con bordes que se desvanecen.
+  function luzRedonda(r) {
+    const cv = document.createElement('canvas'); cv.width = cv.height = r * 2;
+    const g = cv.getContext('2d'), gr = g.createRadialGradient(r, r, 0, r, r, r);
+    for (let i = 0; i <= 12; i++) { const t = i / 12; gr.addColorStop(t, `rgba(0,0,0,${Math.pow(1 - t, 1.4)})`); }   // cae parejo, sin escalones
+    g.fillStyle = gr; g.fillRect(0, 0, r * 2, r * 2);
+    return cv;
+  }
+  function luzCono(largo, ancho) {
+    // apunta hacia la derecha; el origen está en (0, ancho)
+    const w = largo, h = ancho * 2, cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+    const g = cv.getContext('2d'), img = g.createImageData(w, h);
+    const suave = (t) => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const f = x / w, media = 3 + (ancho - 3) * f, d = Math.abs(y + 0.5 - ancho) / media;
+      const a = Math.pow(1 - f, 0.8) * suave((1 - d) / 0.5) * suave(f / 0.1);
+      img.data[(y * w + x) * 4 + 3] = Math.round(255 * a);
+    }
+    g.putImageData(img, 0, 0);
+    return cv;
+  }
+  const LUZ = { mala: luzRedonda(60), auto: luzRedonda(20), nitro: luzRedonda(15), grande: luzRedonda(22), chica: luzRedonda(13),
+    camion: luzRedonda(38), faro: luzCono(60, 24), faroCamion: luzCono(150, 60) };
+  const brilloVerde = (() => {
+    const cv = document.createElement('canvas'); cv.width = cv.height = 48;
+    const g = cv.getContext('2d'), gr = g.createRadialGradient(24, 24, 0, 24, 24, 24);
+    gr.addColorStop(0, 'rgba(90,200,140,.55)'); gr.addColorStop(0.35, 'rgba(60,160,110,.3)'); gr.addColorStop(1, 'rgba(40,110,70,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 48, 48);
+    return cv;
+  })();
+
   function noche(s) {
     octx.setTransform(1, 0, 0, 1, 0, 0);
     octx.globalCompositeOperation = 'source-over';
@@ -516,42 +548,38 @@ export function crearPintor(canvas, opciones = {}) {
     octx.fillStyle = 'rgba(6,8,22,.48)'; octx.fillRect(0, 0, VW, VW);
     octx.setTransform(1, 0, 0, 1, -cam.x, -cam.y);
     octx.globalCompositeOperation = 'destination-out';
-    const aro = (x, y, r, a) => { octx.fillStyle = `rgba(0,0,0,${a})`; octx.beginPath(); octx.arc(Math.round(x), Math.round(y), r, 0, Math.PI * 2); octx.fill(); };
-    // Luz Mala: tres aros escalonados, que titilan
+    const halo = (x, y, sp, a, esc = 1) => {
+      const w = sp.width * esc; octx.globalAlpha = a;
+      octx.drawImage(sp, Math.round(x - w / 2), Math.round(y - w / 2), Math.round(w), Math.round(w));
+    };
+    const cono = (x, y, ang, sp, a) => {
+      octx.save(); octx.globalAlpha = a; octx.translate(x, y); octx.rotate(ang);
+      octx.drawImage(sp, 0, -sp.height / 2); octx.restore();
+    };
+    // Luz Mala: un halo grande que titila
     const pb = s.pelota, ex = bx(pb.x), ey = by(pb.y), tit = 1 + 0.08 * Math.sin(s.cuadro / 3) + (hash(s.cuadro, 1) < 0.05 ? -0.2 : 0);
-    aro(ex, ey, 44 * tit, 0.3); aro(ex, ey, 30 * tit, 0.4); aro(ex, ey, 17 * tit, 0.6);
+    halo(ex, ey, LUZ.mala, 1, tit);
     // el camión trae dos faros enormes
     const k = s.camion;
     if (k && k.estado === 'pasa') {
       const x = bx(k.x), y = by(k.y), d = k.dir;
-      aro(x, y, 30, 0.3);
-      for (const [largo, ancho, a] of [[120, 50, 0.35], [80, 30, 0.45]]) {
-        octx.fillStyle = `rgba(0,0,0,${a})`;
-        octx.beginPath(); octx.moveTo(x - 12, y + d * 36); octx.lineTo(x - ancho, y + d * (36 + largo)); octx.lineTo(x + ancho, y + d * (36 + largo)); octx.lineTo(x + 12, y + d * 36); octx.closePath(); octx.fill();
-      }
+      halo(x, y, LUZ.camion, 0.45);
+      cono(x, y + d * 30, d > 0 ? Math.PI / 2 : -Math.PI / 2, LUZ.faroCamion, 0.75);
     }
     for (const c of s.autos) {
       if (c.aplastado) continue;
-      const x = bx(c.x), y = by(c.y), co = Math.cos(c.rot * Math.PI / 180), si = Math.sin(c.rot * Math.PI / 180);
-      aro(x, y, 14, 0.35);
-      // faros: un cono hacia adelante en dos escalones
-      for (const [largo, ancho, a] of [[46, 18, 0.35], [30, 11, 0.4]]) {
-        octx.fillStyle = `rgba(0,0,0,${a})`;
-        octx.beginPath();
-        octx.moveTo(x + co * 9 - si * 4, y + si * 9 + co * 4);
-        octx.lineTo(x + co * largo - si * ancho, y + si * largo + co * ancho);
-        octx.lineTo(x + co * largo + si * ancho, y + si * largo - co * ancho);
-        octx.lineTo(x + co * 9 + si * 4, y + si * 9 - co * 4);
-        octx.closePath(); octx.fill();
-      }
-      if (c.nitroActivo) aro(x - co * 14, y - si * 14, 10, 0.5);
+      const x = bx(c.x), y = by(c.y), ang = c.rot * Math.PI / 180, co = Math.cos(ang), si = Math.sin(ang);
+      halo(x, y, LUZ.auto, 0.5);
+      cono(x + co * 8, y + si * 8, ang, LUZ.faro, 0.85);
+      if (c.nitroActivo) halo(x - co * 14, y - si * 14, LUZ.nitro, 0.6);
     }
-    for (const p of s.pastillas) if (p.activa) aro(bx(p.x), by(p.y), p.poder > 50 ? 16 : 9, p.poder > 50 ? 0.35 : 0.25);
+    for (const p of s.pastillas) if (p.activa) halo(bx(p.x), by(p.y), p.poder > 50 ? LUZ.grande : LUZ.chica, p.poder > 50 ? 0.45 : 0.32);
+    octx.globalAlpha = 1;
     b.drawImage(oscuro, cam.x, cam.y);
     // brillo verde de la Luz Mala sobre lo que ilumina
     b.globalCompositeOperation = 'lighter';
-    b.fillStyle = 'rgba(40,110,70,.25)'; b.beginPath(); b.arc(Math.round(ex), Math.round(ey), Math.round(18 * tit), 0, Math.PI * 2); b.fill();
-    b.fillStyle = 'rgba(60,160,110,.3)'; b.beginPath(); b.arc(Math.round(ex), Math.round(ey), 9, 0, Math.PI * 2); b.fill();
+    const bw = Math.round(48 * tit);
+    b.drawImage(brilloVerde, Math.round(ex - bw / 2), Math.round(ey - bw / 2), bw, bw);
     b.globalCompositeOperation = 'source-over';
   }
 
