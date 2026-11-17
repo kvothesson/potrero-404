@@ -126,7 +126,7 @@ const post = async (ruta, cuerpo) => {
   } catch { return { error: 'servidor' }; }
 };
 const ERRORES = {
-  humano: 'No pudimos confirmar que no sos un robot. Probá de nuevo.', mail: 'Ese mail no parece bien escrito.', espera: 'Esperá un minuto antes de pedir otro código.',
+  nombreTomado: 'Ese nombre ya está en uso. Si es tuyo, entrá con tu mail o con Google.', humano: 'No pudimos confirmar que no sos un robot. Probá de nuevo.', mail: 'Ese mail no parece bien escrito.', espera: 'Esperá un minuto antes de pedir otro código.',
   muchos: 'Pediste muchos códigos. Probá más tarde.', envio: 'No se pudo mandar el mail. Probá en un rato.',
   codigo: 'El código no coincide.', vencido: 'El código venció o se usó demasiadas veces. Pedí otro.',
   google: 'Google no confirmó la cuenta. Probá de nuevo.', nombre: 'El nombre tiene que tener entre 2 y 16 letras o números.',

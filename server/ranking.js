@@ -72,10 +72,19 @@ export async function preparar(db) {
 export async function registrar(db, nombre) {
   const limpio = limpiarNombre(nombre);
   if (!limpio) return { error: 'nombre' };
+  // nombres únicos (sin importar mayúsculas ni acentos), incluidas las IAs: nadie se hace pasar por otro
+  if (await nombreTomado(db, limpio)) return { error: 'nombreTomado' };
   const id = azarTexto(8), llave = azarTexto(20);
   await db.correr(`INSERT INTO jugadores (id, nombre, llave_hash, elo, creado, actualizado) VALUES (?, ?, ?, ?, ?, ?)`,
     id, limpio, await hash(llave), ELO_INICIAL, ahora(), ahora());
   return { id, llave, nombre: limpio, elo: ELO_INICIAL };
+}
+
+const sinAcentos = (t) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+export async function nombreTomado(db, nombre) {
+  const buscado = sinAcentos(nombre);
+  const filas = await db.todas(`SELECT nombre FROM jugadores`);
+  return filas.some((f) => sinAcentos(f.nombre) === buscado);
 }
 
 export async function verificar(db, id, llave) {

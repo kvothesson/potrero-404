@@ -35,6 +35,7 @@ const TEXTOS = {
   oro: { es: 'GOL DE ORO', en: 'GOLDEN GOAL', pt: 'GOL DE OURO' },
   conGoogle: { es: 'Continuar con Google', en: 'Continue with Google', pt: 'Continuar com o Google' },
   e_ventana: { es: 'El navegador bloqueó la ventana. Permitila e intentá de nuevo, o entrá con tu mail.', en: 'The browser blocked the window. Allow it and try again, or use your email.', pt: 'O navegador bloqueou a janela. Permita e tente de novo, ou use seu e-mail.' },
+  e_nombreTomado: { es: 'Ese nombre ya está en uso. Si es tuyo, entrá con tu mail o con Google.', en: 'That name is taken. If it is yours, sign in with your email or Google.', pt: 'Esse nome já está em uso. Se for seu, entre com seu e-mail ou Google.' },
   gana: { es: '3 GOLES O 3 MINUTOS', en: '3 GOALS OR 3 MINUTES', pt: '3 GOLS OU 3 MINUTOS' },
 
   // panel de cuenta (HTML)

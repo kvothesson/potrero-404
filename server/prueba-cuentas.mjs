@@ -75,5 +75,10 @@ ok(!JSON.stringify(sqlite.prepare('SELECT * FROM limites').all()).includes('1.2.
 ok(await verificarHumano({}, '', 'x'), 'sin clave secreta (en la PC) no se pide la prueba anti-bots');
 ok(!(await verificarHumano({ turnstile: 'secreta' }, '', 'x')), 'con clave secreta, sin token no pasa');
 
+// 6. Nombres únicos
+ok((await registrar(db, 'anonimo')).error === 'nombreTomado', 'no deja repetir un nombre (sin importar mayúsculas)');
+ok((await registrar(db, 'Chatarra')).error === 'nombreTomado', 'no deja usar el nombre de una IA');
+ok((await registrar(db, 'Nombre Libre')).id, 'un nombre libre se puede usar');
+
 console.log(fallas ? `\n${fallas} fallas` : '\nTodo bien');
 process.exit(fallas ? 1 : 0);
