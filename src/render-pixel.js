@@ -994,7 +994,7 @@ export function crearPintor(canvas, opciones = {}) {
       }
     }
     // saltear, siempre a mano
-    texto(b, t('saltear'), BW - 6, 6, { alinear: 'der', color: 'rgba(232,228,255,.7)', sombra: null });
+    if (!LIMPIO) texto(b, t('saltear'), BW - 6, 6, { alinear: 'der', color: 'rgba(232,228,255,.7)', sombra: null });
   }
 
   // Sala online: código grande, botón para copiar o compartir el link y quién falta.

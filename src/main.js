@@ -9,6 +9,11 @@ import { crearCuenta } from './cuenta.js';
 import { visita, evento, duracion } from './metricas.js';
 
 const params = new URLSearchParams(location.search);
+// Opción oculta ?grabar: el juego no corre solo; se avanza cuadro a cuadro desde afuera
+// (window.potrero.avanzar(ms)) con un reloj inventado, para grabar el tráiler sin saltos.
+const GRABAR = params.has('grabar');
+let relojVirtual = 0;
+const ahora = () => (GRABAR ? relojVirtual : performance.now());
 // Arte en pixel a lo Super Nintendo; con ?liso se ve el dibujo vectorial anterior.
 const canvas = document.getElementById('juego');
 // ?cancha=estadio elige la cancha de pasto; por defecto se juega en la Ruta 404.
@@ -127,7 +132,7 @@ function salirDeOnline() {
   const abandona = rankeadaEnJuego();
   confirmarSalida = false;
   volverAlMenu();
-  if (abandona) aviso = { hasta: performance.now() + 6000 };
+  if (abandona) aviso = { hasta: ahora() + 6000 };
 }
 
 // ---------- intro: logo de Kvothesson y tráiler, solo la primera vez (o con ?intro), salteable ----------
@@ -139,7 +144,7 @@ function quiereIntro() {
   try { return !localStorage.getItem('potrero404.intro'); } catch { return false; }
 }
 function empezarIntro() {
-  pantalla = 'intro'; introDesde = performance.now(); introJuega = false;
+  pantalla = 'intro'; introDesde = ahora(); introJuega = false;
   estado = nuevoEstado(); botIntro = crearBot(0, 7); bot = crearBot(1, 7);
 }
 function terminarIntro() {
@@ -148,7 +153,7 @@ function terminarIntro() {
   pintor.limpiarMarcas();
 }
 function pasoIntro() {
-  const t = (performance.now() - introDesde) / 1000;
+  const t = (ahora() - introDesde) / 1000;
   if (t < LOGO_S) return;
   if (!introJuega) {
     introJuega = true; estado.fase = 'juego'; estado.reloj = 0;
@@ -172,7 +177,7 @@ async function empezar(modo) {
     if (!r.ok) { red = { caido: true, cerrar() {}, tic: () => null, vista: () => null }; return; }
     red = conectar({ codigo: r.datos.codigo, fisica, rank: true, yo });
     red.codigo = r.datos.codigo;
-    partidaEnCurso = { modo: 'online', desde: performance.now() }; evento({ t: 'partida', modo: 'online' });
+    partidaEnCurso = { modo: 'online', desde: ahora() }; evento({ t: 'partida', modo: 'online' });
   } else if (modo === 'amigo') {
     // sala por link con amigos: no cuenta para el ranking
     pantalla = 'amigo';
@@ -183,12 +188,12 @@ async function empezar(modo) {
     }
     red = conectar({ codigo, fisica, yo });
     red.codigo = codigo;
-    partidaEnCurso = { modo: 'amigo', desde: performance.now() }; evento({ t: 'partida', modo: 'amigo' });
+    partidaEnCurso = { modo: 'amigo', desde: ahora() }; evento({ t: 'partida', modo: 'amigo' });
   } else {
     pantalla = 'bot';
     revancha(estado); if (fisica) estado.fisica = fisica;
     bot = crearBot(1, 5);
-    partidaEnCurso = { modo: 'bot', desde: performance.now() }; evento({ t: 'partida', modo: 'bot' });
+    partidaEnCurso = { modo: 'bot', desde: ahora() }; evento({ t: 'partida', modo: 'bot' });
   }
 }
 
@@ -257,7 +262,7 @@ function revanchaAhora() {
   if (pantalla === 'online') { empezar('online'); return; }
   if (red) red.revancha(); else revancha(estado);
   const modo = pantalla === 'bot' ? 'bot' : 'amigo';
-  partidaEnCurso = { modo, desde: performance.now() }; evento({ t: 'partida', modo });
+  partidaEnCurso = { modo, desde: ahora() }; evento({ t: 'partida', modo });
 }
 
 // Toques y clics: botones dibujados en el canvas.
@@ -320,9 +325,9 @@ function vista() {
 function extras() {
   return {
     pantalla: pantalla === 'amigo' ? 'online' : pantalla,
-    intro: pantalla === 'intro' ? (() => { const t = (performance.now() - introDesde) / 1000; return t < LOGO_S ? { fase: 'logo', t } : { fase: 'trailer', t: t - LOGO_S }; })() : null, rankeada: pantalla === 'online', pausa, tactil: !!tactil, seguir: aQuienSigo(),
+    intro: pantalla === 'intro' ? (() => { const t = (ahora() - introDesde) / 1000; return t < LOGO_S ? { fase: 'logo', t } : { fase: 'trailer', t: t - LOGO_S }; })() : null, rankeada: pantalla === 'online', pausa, tactil: !!tactil, seguir: aQuienSigo(),
     yo, ranking, mostrarRespaldo, respaldo: codigoRespaldo(), camPelota, sonido: sonido.prendido(), instalable: !!instalable,
-    confirmarSalida: confirmarSalida && rankeadaEnJuego(), aviso: aviso && performance.now() < aviso.hasta ? 'abandono' : null,
+    confirmarSalida: confirmarSalida && rankeadaEnJuego(), aviso: aviso && ahora() < aviso.hasta ? 'abandono' : null,
     red: red && { lado: red.lado, jugadores: red.jugadores, codigo: red.codigo, caido: red.caido, conectado: red.conectado, ping: red.ping,
       listo: !!red.estado, nombres: red.nombres, elo: red.elo, rankeada: pantalla === 'online' },
   };
@@ -330,10 +335,10 @@ function extras() {
 
 // Paso fijo de 1/60 s, igual que el frameRate del SWF original.
 const DT = 1000 / FPS;
-let acumulado = 0, antes = performance.now();
-function cuadro(ahora) {
-  if (window.potrero && window.potrero.congelado) { antes = ahora; requestAnimationFrame(cuadro); return; }   // para pruebas
-  acumulado += Math.min(250, ahora - antes); antes = ahora;
+let acumulado = 0, antes = ahora();
+function cuadro(tAhora) {
+  if (window.potrero && window.potrero.congelado) { antes = tAhora; if (!GRABAR) requestAnimationFrame(cuadro); return; }   // para pruebas
+  acumulado += Math.min(250, tAhora - antes); antes = tAhora;
   while (acumulado >= DT) {
     if (pantalla === 'intro') pasoIntro();
     else if (pantalla === 'bot' && !pausa) {
@@ -351,7 +356,7 @@ function cuadro(ahora) {
   const jugando = pantalla === 'bot' || online();
   if (partidaEnCurso && s && s.fase === 'fin') {
     const lado = Math.max(0, aQuienSigo());
-    evento({ t: 'fin', modo: partidaEnCurso.modo, res: s.ganador === lado ? 'gana' : 'pierde', dura: duracion(performance.now() - partidaEnCurso.desde) });
+    evento({ t: 'fin', modo: partidaEnCurso.modo, res: s.ganador === lado ? 'gana' : 'pierde', dura: duracion(ahora() - partidaEnCurso.desde) });
     partidaEnCurso = null;
   }
   if (tactil) {
@@ -361,7 +366,7 @@ function cuadro(ahora) {
   }
   sonido.motores(!jugando || pausa || !s ? null : s);
   pintor.dibujar(s || estado, extras());
-  requestAnimationFrame(cuadro);
+  if (!GRABAR) requestAnimationFrame(cuadro);
 }
 // Instalable como app: el archivo sw.js guarda una copia para jugar sin internet y se actualiza solo.
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
@@ -376,8 +381,7 @@ async function instalar() {
   instalable = null;
 }
 if (quiereIntro()) empezarIntro();
-requestAnimationFrame(cuadro);
-visita();
+if (!GRABAR) { requestAnimationFrame(cuadro); visita(); }
 
 // Si se entra con un link de sala, ir directo a esa sala (con amigos, sin Elo).
 if (params.get('sala')) empezar('amigo');
@@ -386,6 +390,7 @@ if (params.get('sala')) empezar('amigo');
 window.potrero = {
   get estado() { return vista() || estado; }, get red() { return red; }, get pantalla() { return pantalla; },
   paso: (e) => paso(estado, e), empezar: (m = 'bot') => empezar(m), menu: volverAlMenu, ranking: verRanking, intro: () => empezarIntro(),
+  avanzar: (ms) => { relojVirtual += ms; cuadro(relojVirtual); },
   leerPropio: () => leerPropio(vista() && vista().autos[Math.max(0, aQuienSigo())]),
   dibujar: () => pintor.dibujar((online() && red ? red.vista() : vista()) || estado, extras()),
 };
