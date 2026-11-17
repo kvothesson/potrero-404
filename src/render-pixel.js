@@ -777,6 +777,22 @@ export function crearPintor(canvas, opciones = {}) {
     boton('menu', 8, BH - 28, 24, 20, GRIS, (x, y) => icono(b, 'casa', x + 7, y + 5));
   }
 
+  // Rankeada en juego: irse es perder, así que se pregunta antes.
+  function cartelSalida(extra) {
+    const y0 = franja(92, '#ff6a6a');
+    texto(b, t('salirPierde'), BW / 2, y0 + 12, { alinear: 'centro', color: '#fff4b0' });
+    texto(b, t('salirPierde2'), BW / 2, y0 + 24, { alinear: 'centro', color: '#fff4b0' });
+    const w1 = 30 + t('seguirJugando').length * 6, w2 = 30 + t('irmeIgual').length * 6, x0 = BW / 2 - (w1 + 10 + w2) / 2;
+    boton('quedarme', x0, y0 + 46, w1, 24, { cuerpo: '#2f8f6a', lado: '#1c5a42' }, (x, y) => {
+      if (!extra.tactil) tecla(b, 'ESC', x + 4, y + 6, 21);
+      texto(b, t('seguirJugando'), extra.tactil ? x + w1 / 2 : x + 28, y + 9, { alinear: extra.tactil ? 'centro' : 'izq', color: '#fff' });
+    });
+    boton('irme', x0 + w1 + 10, y0 + 46, w2, 24, { cuerpo: '#8a2a3a', lado: '#5a1a24' }, (x, y) => {
+      if (!extra.tactil) tecla(b, 'Q', x + 4, y + 6);
+      texto(b, t('irmeIgual'), extra.tactil ? x + w2 / 2 : x + 22, y + 9, { alinear: extra.tactil ? 'centro' : 'izq', color: '#fff' });
+    });
+  }
+
   function cartelPausa(extra) {
     const y0 = franja(78, '#9890b8');
     icono(b, 'pausa', BW / 2 - 9, y0 + 6, 2);
@@ -793,6 +809,12 @@ export function crearPintor(canvas, opciones = {}) {
     b.fillStyle = 'rgba(20,15,34,.86)'; b.fillRect(0, 0, BW, BH);
     const ancho = BW > BH;   // pantalla horizontal: modos a la izquierda, controles a la derecha
 
+    // aviso después de irse de una rankeada
+    if (extra.aviso === 'abandono') {
+      const w = t('abandonaste').length * 6 + 16;
+      b.fillStyle = '#5a1a24'; b.fillRect(BW / 2 - w / 2, 58, w, 14);
+      texto(b, t('abandonaste'), BW / 2, 62, { alinear: 'centro', color: '#ffd0d0', sombra: null });
+    }
     // tu cuenta, arriba a la derecha: tu nombre (con ✓ si entraste con Google o mail) o "ENTRAR"
     {
       const nombre = extra.yo ? extra.yo.nombre : t('entrarCanvas');
@@ -1137,7 +1159,8 @@ export function crearPintor(canvas, opciones = {}) {
     else if (r && r.caido) caido();
     else if (r && (!r.listo || r.jugadores < 2) && r.lado >= 0) esperaSala(r, extra);
     else {
-      if (extra.pausa) cartelPausa(extra);
+      if (extra.confirmarSalida) cartelSalida(extra);
+      else if (extra.pausa) cartelPausa(extra);
       else if (s.fase === 'cuenta') {
         const n = Math.ceil(s.reloj / FPS);
         texto(b, n, BW / 2, BH / 2 - 22, { esc: 6, alinear: 'centro', color: '#fff4b0', sombra: P.contorno });

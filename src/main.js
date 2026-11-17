@@ -116,6 +116,19 @@ const apretadas = new Set();
 const DE_JUEGO = new Set(TECLAS.flatMap((t) => Object.values(t).flat()));
 
 let partidaEnCurso = null;   // { modo, desde } para las métricas
+// Irse de una rankeada en juego es perder (lo anota el servidor): antes se pregunta, y después se avisa.
+let confirmarSalida = false, aviso = null;
+function rankeadaEnJuego() {
+  if (pantalla !== 'online' || !red || red.lado < 0 || red.jugadores < 2) return false;
+  const s = red.estado; return !!s && s.fase !== 'fin';
+}
+function salirDeOnline() {
+  if (rankeadaEnJuego() && !confirmarSalida) { confirmarSalida = true; return; }
+  const abandona = rankeadaEnJuego();
+  confirmarSalida = false;
+  volverAlMenu();
+  if (abandona) aviso = { hasta: performance.now() + 6000 };
+}
 
 // ---------- intro: logo de Kvothesson y tráiler, solo la primera vez (o con ?intro), salteable ----------
 const LOGO_S = 2.4, TRAILER_S = 13.5;
@@ -218,8 +231,9 @@ addEventListener('keydown', (e) => {
   if (pantalla === 'ranking') { if (e.code === 'Escape' || e.code === 'Enter') volverAlMenu(); return; }
   const actual = vista();
   if (actual && actual.fase === 'fin' && (e.code === 'Enter' || e.code === 'NumpadEnter')) { revanchaAhora(); return; }
+  if (confirmarSalida && (e.code === 'Enter' || e.code === 'KeyQ')) { salirDeOnline(); return; }
   if (e.code === 'Escape') {
-    if (online()) { volverAlMenu(); return; }   // online no se pausa: Esc sale
+    if (online()) { if (confirmarSalida) confirmarSalida = false; else salirDeOnline(); return; }   // online no se pausa: Esc sale (en rankeada, pregunta)
     pausa = !pausa;
   }
   if (pausa && e.code === 'KeyR') { pausa = false; revancha(estado); pintor.limpiarMarcas(); }
@@ -256,7 +270,9 @@ canvas.addEventListener('pointerdown', (e) => {
   if (id === 'bot' || id === 'online' || id === 'amigo') empezar(id);
   else if (id === 'ranking') verRanking();
   else if (id === 'cuenta') abrirCuenta();
-  else if (id === 'menu') volverAlMenu();
+  else if (id === 'menu') { if (online()) salirDeOnline(); else volverAlMenu(); }
+  else if (id === 'irme') salirDeOnline();
+  else if (id === 'quedarme') confirmarSalida = false;
   else if (id === 'otra') revanchaAhora();
   else if (id === 'desafiar') desafiar();
   else if (id === 'instalar') instalar();
@@ -306,6 +322,7 @@ function extras() {
     pantalla: pantalla === 'amigo' ? 'online' : pantalla,
     intro: pantalla === 'intro' ? (() => { const t = (performance.now() - introDesde) / 1000; return t < LOGO_S ? { fase: 'logo', t } : { fase: 'trailer', t: t - LOGO_S }; })() : null, rankeada: pantalla === 'online', pausa, tactil: !!tactil, seguir: aQuienSigo(),
     yo, ranking, mostrarRespaldo, respaldo: codigoRespaldo(), camPelota, sonido: sonido.prendido(), instalable: !!instalable,
+    confirmarSalida: confirmarSalida && rankeadaEnJuego(), aviso: aviso && performance.now() < aviso.hasta ? 'abandono' : null,
     red: red && { lado: red.lado, jugadores: red.jugadores, codigo: red.codigo, caido: red.caido, conectado: red.conectado, ping: red.ping,
       listo: !!red.estado, nombres: red.nombres, elo: red.elo, rankeada: pantalla === 'online' },
   };

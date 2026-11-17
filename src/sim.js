@@ -63,6 +63,25 @@ export function paredes() {
   return { puntos: p, seg };
 }
 const PARED = paredes();
+// ¿El punto está adentro de la cancha (arcos incluidos)?
+function adentro(x, y) {
+  const p = PARED.puntos; let ok = false;
+  for (let i = 0, j = p.length - 1; i < p.length; j = i++) {
+    const [xi, yi] = p[i], [xj, yj] = p[j];
+    if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) ok = !ok;
+  }
+  return ok;
+}
+// Adentro y sin tocar ninguna pared (a una distancia r o más de todas).
+function libreDeParedes(x, y, r) {
+  if (!adentro(x, y)) return false;
+  for (const [[ax, ay], [bx, by]] of PARED.seg) {
+    const ex = bx - ax, ey = by - ay, l2 = ex * ex + ey * ey;
+    const t = Math.max(0, Math.min(1, ((x - ax) * ex + (y - ay) * ey) / l2));
+    if (Math.hypot(x - ax - ex * t, y - ay - ey * t) < r) return false;
+  }
+  return true;
+}
 
 // Pastillas de nitro: el mismo dibujo que addStageNitro() de Main.as, en la cancha grande.
 function pastillas() {
@@ -100,7 +119,7 @@ function reubicar(s) {
     Object.assign(c, { x: sp.x, y: sp.y, rot: sp.rot, vx: 0, vy: 0, vel: 0, lat: 0, frenoActivo: false, nitroActivo: false,
       salto: 0, recarga: 0, saltoAntes: true, aplastado: 0, derrape: 0 });
   });
-  Object.assign(s.pelota, { x: W / 2, y: H / 2, vx: 0, vy: 0 });
+  Object.assign(s.pelota, { x: W / 2, y: H / 2, vx: 0, vy: 0, buena: null });
 }
 
 export function revancha(s) {
@@ -171,8 +190,11 @@ function mordida(s) {
   if (Math.hypot(b.vx, b.vy) > 3) return;
   const [a, z] = s.autos;
   let nx = z.x - a.x, ny = z.y - a.y; const d = Math.hypot(nx, ny) || 1; nx /= d; ny /= d;
-  const lado = azar(s, 9) < 0.5 ? -1 : 1;
+  let lado = azar(s, 9) < 0.5 ? -1 : 1;
   const desde = { x: b.x, y: b.y };
+  // salta solo a un lugar adentro de la cancha y sin pared; si de un lado no hay lugar, prueba el otro
+  const libre = (l) => libreDeParedes(b.x - ny * l * SALTO_CUANTICO, b.y + nx * l * SALTO_CUANTICO, R_PELOTA + 2);
+  if (!libre(lado)) { if (libre(-lado)) lado = -lado; else return; }
   b.x += -ny * lado * SALTO_CUANTICO; b.y += nx * lado * SALTO_CUANTICO;
   b.vx = -ny * lado * MORDIDA; b.vy = nx * lado * MORDIDA;
   b.tocadaPor = [-99, -99];
@@ -324,7 +346,8 @@ function empujarFuera(o, r) {
   return peor;
 }
 
-// Contra la pared el auto pierde lo que iba hacia la pared y se desliza por ella.
+// Contra la pared el auto anda por el borde: lo que iba hacia la pared se vuelca a lo largo
+// de ella (casi sin perder velocidad) y la trompa se acomoda sola para seguir el borde.
 function chocarPared(s, c) {
   for (const k of circulosAuto(c)) {
     const q = { x: k.x, y: k.y };
@@ -332,9 +355,28 @@ function chocarPared(s, c) {
     if (!n) continue;
     c.x += q.x - k.x; c.y += q.y - k.y;
     const vn = c.vx * n.nx + c.vy * n.ny;
-    if (vn < 0) {
+    if (vn >= 0) continue;
+    if (-vn > 3) s.eventos.push({ t: 'choque', quien: c.i, fuerza: -vn });
+    const v = Math.hypot(c.vx, c.vy);
+    // tangente de la pared, para el lado al que ya iba el auto (o al que mira la trompa)
+    let tx = -n.ny, ty = n.nx;
+    const co = Math.cos(rad(c.rot)), si = Math.sin(rad(c.rot));
+    const vt = c.vx * tx + c.vy * ty, ht = co * tx + si * ty;
+    if ((Math.abs(vt) > 0.3 ? vt : ht) < 0) { tx = -tx; ty = -ty; }
+    const deFrente = -(co * n.nx + si * n.ny);      // 1: trompa contra la pared; 0: paralelo
+    if (deFrente > 0.985) {
+      // de frente contra la pared: rebota un poco, como antes
       c.vx -= (1 + REBOTE_AUTO_PARED) * vn * n.nx; c.vy -= (1 + REBOTE_AUTO_PARED) * vn * n.ny;
-      if (-vn > 3) s.eventos.push({ t: 'choque', quien: c.i, fuerza: -vn });
+      continue;
+    }
+    const sigue = Math.max(Math.abs(c.vx * tx + c.vy * ty), v * 0.9);
+    c.vx = tx * sigue + n.nx * 0.2; c.vy = ty * sigue + n.ny * 0.2;
+    // la trompa gira hacia el borde (si va para adelante)
+    if (co * c.vx + si * c.vy > 0.5) {
+      const objetivo = Math.atan2(ty, tx) * 180 / Math.PI;
+      let d = ((objetivo - c.rot + 540) % 360) - 180;
+      d = Math.max(-16, Math.min(16, d));
+      c.rot = (((c.rot + d) % 360) + 360) % 360;
     }
   }
 }
@@ -496,17 +538,29 @@ function moverPelota(s) {
     const nv = Math.max(0, v - ROCE_PELOTA - v * AIRE_PELOTA);
     b.vx *= nv / v; b.vy *= nv / v;
   }
-  b.x += b.vx; b.y += b.vy;
   b.giro += v * 0.06;
-  const n = empujarFuera(b, R_PELOTA);
-  if (n) {
-    const vn = b.vx * n.nx + b.vy * n.ny;
-    if (vn < 0) {
-      b.vx -= (1 + REBOTE_PELOTA_PARED) * vn * n.nx; b.vy -= (1 + REBOTE_PELOTA_PARED) * vn * n.ny;
-      if (-vn > 1.5) s.eventos.push({ t: 'pared', fuerza: -vn });
+  // si un auto la empujó afuera de la cancha (contra la pared), vuelve a su último lugar bueno
+  if (b.buena && !adentro(b.x, b.y)) { b.x = b.buena.x; b.y = b.buena.y; }
+  // en pasitos de menos de media pelota, así nunca atraviesa una pared por ir rápido
+  const pasos = Math.max(1, Math.ceil(Math.hypot(b.vx, b.vy) / (R_PELOTA * 0.5)));
+  for (let k = 0; k < pasos; k++) {
+    b.x += b.vx / pasos; b.y += b.vy / pasos;
+    const n = empujarFuera(b, R_PELOTA);
+    if (n) {
+      const vn = b.vx * n.nx + b.vy * n.ny;
+      if (vn < 0) {
+        b.vx -= (1 + REBOTE_PELOTA_PARED) * vn * n.nx; b.vy -= (1 + REBOTE_PELOTA_PARED) * vn * n.ny;
+        if (-vn > 1.5) s.eventos.push({ t: 'pared', fuerza: -vn });
+      }
     }
+    // si igual quedó afuera, vuelve adonde estaba bien y rebota (nunca más al centro de golpe)
+    if (!adentro(b.x, b.y)) {
+      if (b.buena) { b.x = b.buena.x; b.y = b.buena.y; } else Object.assign(b, { x: W / 2, y: H / 2 });
+      b.vx *= -0.5; b.vy *= -0.5;
+      break;
+    }
+    b.buena = { x: b.x, y: b.y };
   }
-  if (b.x < -20 || b.x > W + 20 || b.y < -20 || b.y > H + 20) Object.assign(b, { x: W / 2, y: H / 2, vx: 0, vy: 0 });
 }
 
 function revisarGol(s) {

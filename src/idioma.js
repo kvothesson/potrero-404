@@ -27,6 +27,11 @@ const TEXTOS = {
   intro4: { es: 'CUIDADO CON EL CAMIÓN', en: 'WATCH OUT FOR THE TRUCK', pt: 'CUIDADO COM O CAMINHÃO' },
   intro5: { es: 'ONLINE · GRATIS · SIN INSTALAR', en: 'ONLINE · FREE · NO INSTALL', pt: 'ONLINE · GRÁTIS · SEM INSTALAR' },
   instalar: { es: 'INSTALAR', en: 'INSTALL', pt: 'INSTALAR' },
+  salirPierde: { es: 'SI TE VAS, PERDÉS EL PARTIDO', en: 'IF YOU LEAVE, YOU LOSE THE MATCH', pt: 'SE SAIR, VOCÊ PERDE A PARTIDA' },
+  salirPierde2: { es: 'Y PUNTOS DE RANKING', en: 'AND RANKING POINTS', pt: 'E PONTOS DE RANKING' },
+  seguirJugando: { es: 'SEGUIR', en: 'STAY', pt: 'FICAR' },
+  irmeIgual: { es: 'IRME', en: 'LEAVE', pt: 'SAIR' },
+  abandonaste: { es: 'PERDISTE POR ABANDONO: BAJÓ TU ELO', en: 'YOU LOST BY LEAVING: YOUR ELO WENT DOWN', pt: 'VOCÊ PERDEU POR ABANDONO: SEU ELO CAIU' },
   gana: { es: 'GANA EL PRIMERO EN HACER 3', en: 'FIRST TO 3 GOALS WINS', pt: 'VENCE QUEM FIZER 3 GOLS' },
 
   // panel de cuenta (HTML)
