@@ -20,7 +20,7 @@ export function crearTactil() {
   const zona = capa.querySelector('.zona-palanca'), base = capa.querySelector('.base'), perilla = capa.querySelector('.perilla');
   const botones = capa.querySelector('.botones');
   const apretado = { nitro: false, salto: false, freno: false };
-  for (const [clave, ic] of [['freno', 'derrape'], ['salto', 'salto'], ['nitro', 'nitro']]) {
+  for (const [clave, ic] of [['freno', 'derrape'], ['nitro', 'nitro']]) {
     const b = document.createElement('button'); b.className = `boton ${clave}`; b.setAttribute('aria-label', clave);
     b.appendChild(botonIcono(ic));
     const etq = document.createElement('span'); etq.className = 'etq'; etq.textContent = t(ic === 'derrape' ? 'derrape' : ic); b.appendChild(etq);

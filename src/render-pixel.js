@@ -2,7 +2,7 @@
 // (272x400 parado, más ancho acostado) con paleta limitada, contornos de 1 píxel y vista de tres cuartos, y después
 // se agranda a escala entera sin suavizado. Solo lee el estado; nunca lo cambia.
 import { t } from './idioma.js';
-import { W, H, CAMPO, AUTOS, GOLES_PARA_GANAR, FPS, paredes } from './sim.js';
+import { W, H, CAMPO, AUTOS, GOLES_PARA_GANAR, FPS, paredes, TIEMPO_PARTIDO } from './sim.js';
 import { texto, icono, tecla } from './fuente.js';
 import { CANCHAS, hash } from './canchas.js';
 // Sin palabras en pantalla: todo se dice con colores, números, íconos y teclas dibujadas,
@@ -647,8 +647,9 @@ export function crearPintor(canvas, opciones = {}) {
   }
 
   function hud(s) {
-    // marcador arriba, sobre las gradas
+    // marcador arriba, sobre las gradas, y el reloj del partido debajo
     marcador(s, BW / 2, 2);
+    reloj(s, BW / 2, 19);
     // barras de nitro en las gradas de los costados, en bloques
     s.autos.forEach((c, i) => {
       const x = i === 0 ? 4 : BW - 10, y0 = i === 0 ? 70 : BH - 70 - 101;
@@ -662,6 +663,22 @@ export function crearPintor(canvas, opciones = {}) {
       b.fillStyle = P.contorno; b.fillRect(x - 1, yy - 1, 8, 8);
       b.fillStyle = c.recarga ? '#3a3456' : COLOR_AUTO[i].techo; b.fillRect(x, yy, 6, 6);
     });
+  }
+
+  // Reloj: lo que queda del partido; rojo y latiendo en los últimos 30 s; en el alargue, GOL DE ORO.
+  function reloj(s, cx, y) {
+    if (s.oro) {
+      const w = t('oro').length * 6 + 8;
+      b.fillStyle = P.contorno; b.fillRect(cx - w / 2 - 1, y - 1, w + 2, 11);
+      b.fillStyle = (s.cuadro >> 4) % 2 ? '#ffd040' : '#c89a20'; b.fillRect(cx - w / 2, y, w, 9);
+      texto(b, t('oro'), cx, y + 1, { alinear: 'centro', color: '#2a1a04', sombra: null });
+      return;
+    }
+    const resta = Math.max(0, Math.ceil((TIEMPO_PARTIDO - s.tiempoJuego) / FPS));
+    const txt = `${Math.floor(resta / 60)}:${String(resta % 60).padStart(2, '0')}`;
+    const ultimos = resta <= 30, late = ultimos && (s.cuadro >> 4) % 2;
+    b.fillStyle = 'rgba(20,15,34,.75)'; b.fillRect(cx - 15, y - 1, 30, 11);
+    texto(b, txt, cx, y + 1, { alinear: 'centro', color: ultimos ? (late ? '#ff6a6a' : '#ffb0b0') : '#e8e4ff', sombra: null });
   }
 
   // Marcador: un bloque de cada color con su número. esc agranda todo.
@@ -864,7 +881,7 @@ export function crearPintor(canvas, opciones = {}) {
     const cx = colB ? colB.x : colA.x, cw = colB ? colB.w : colA.w;
     let yc = colB ? colB.y : y + 4;
     if (!extra.tactil) {
-      b.fillStyle = '#2a2448'; b.fillRect(cx, yc, cw, 124);
+      b.fillStyle = '#2a2448'; b.fillRect(cx, yc, cw, 100);
       const fila = (yy, ic, nombre, teclas) => {
         icono(b, ic, cx + 6, yy + 2);
         texto(b, nombre, cx + 20, yy + 3, { color: '#c8c2ea' });
@@ -877,25 +894,23 @@ export function crearPintor(canvas, opciones = {}) {
       fila(yc + 6, 'flecha', t('mover'), [['WASD', 29], ['↑↓←→', 29]]);
       fila(yc + 30, 'derrape', t('derrape'), [['⇧', 21], ['C', 13]]);
       fila(yc + 54, 'nitro', t('nitro'), [['', 30], ['CTRL', 29]]);
-      fila(yc + 78, 'salto', t('salto'), [['E', 13], ['⏎', 21]]);
-      fila(yc + 102, 'pausa', t('pausa'), [['ESC', 21]]);
-      yc += 130;
+      fila(yc + 78, 'pausa', t('pausa'), [['ESC', 21]]);
+      yc += 106;
     } else {
       // en el celu: palanca a la izquierda para manejar, botones redondos a la derecha
-      b.fillStyle = '#2a2448'; b.fillRect(cx, yc, cw, 100);
+      b.fillStyle = '#2a2448'; b.fillRect(cx, yc, cw, 76);
       const circulo = (x, y, r, col) => { b.fillStyle = P.contorno; b.beginPath(); b.arc(x, y, r + 1, 0, 7); b.fill(); b.fillStyle = col; b.beginPath(); b.arc(x, y, r, 0, 7); b.fill(); };
       const fila = (yy, dibujo, nombre) => { dibujo(cx + 14, yy + 6); texto(b, nombre, cx + 30, yy + 3, { color: '#c8c2ea' }); };
       fila(yc + 6, (x, y) => { circulo(x, y, 8, '#3a3456'); circulo(x + 2, y - 2, 4, '#9890b8'); }, t('mover'));
       fila(yc + 30, (x, y) => { circulo(x, y, 8, '#4a4470'); icono(b, 'derrape', x - 4, y - 4); }, t('derrape'));
       fila(yc + 54, (x, y) => { circulo(x, y, 8, '#e07818'); icono(b, 'nitro', x - 4, y - 4); }, t('nitro'));
-      fila(yc + 78, (x, y) => { circulo(x, y, 8, '#4a4470'); icono(b, 'salto', x - 4, y - 4); }, t('salto'));
       // dónde va cada cosa en la pantalla
       // un celu dibujado: parado si la pantalla está parada, acostado si está acostada
-      const pw = ancho ? 76 : 40, ph = ancho ? 44 : 72, mx = cx + cw - pw - 6, my = yc + (100 - ph) / 2;
+      const pw = ancho ? 76 : 40, ph = ancho ? 44 : 64, mx = cx + cw - pw - 6, my = yc + (76 - ph) / 2;
       b.fillStyle = '#1c1830'; b.fillRect(mx, my, pw, ph);
       circulo(mx + 10, my + ph - 12, 6, '#3a3456');
-      circulo(mx + pw - 9, my + ph - 10, 5, '#e07818'); circulo(mx + pw - 19, my + ph - 10, 4, '#4a4470'); circulo(mx + pw - 9, my + ph - 21, 4, '#4a4470');
-      yc += 106;
+      circulo(mx + pw - 9, my + ph - 10, 5, '#e07818'); circulo(mx + pw - 19, my + ph - 10, 4, '#4a4470');
+      yc += 82;
     }
     if (!colB) y = yc; else y = Math.max(y, yc);
     // celu parado: se juega mejor acostado

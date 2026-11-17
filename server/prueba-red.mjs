@@ -32,10 +32,10 @@ for (let k = 0; k < 240; k++) {
 }
 await espera(500);
 for (let k = 0; k < 30; k++) { a.tic({}); b.tic({}); await espera(1000 / 60); }
-const ca = a.estado.autos[0], cb = b.estado.autos[0];
+const ca = a.estado.autos[a.lado], cb = b.estado.autos[a.lado];   // el auto que manejó a (puede tocarle azul o rojo)
 console.log(JSON.stringify({
   cuadros, saltoMaximoPx: +saltoMax.toFixed(2), pendientesAlFinal: a.pendientes.length,
-  azulSegunA: [+ca.x.toFixed(1), +ca.y.toFixed(1)], azulSegunB: [+cb.x.toFixed(1), +cb.y.toFixed(1)],
+  propioSegunA: [+ca.x.toFixed(1), +ca.y.toFixed(1)], propioSegunB: [+cb.x.toFixed(1), +cb.y.toFixed(1)],
 }));
 a.cerrar(); b.cerrar();
 process.exit(0);

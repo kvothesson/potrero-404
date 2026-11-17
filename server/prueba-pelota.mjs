@@ -20,7 +20,7 @@ for (let k = 0; k < N; k++) {
       const salto = Math.hypot(p.x - prev.x, p.y - prev.y);
       const esCuantico = s.eventos.some((e) => e.t === 'cuantico');
       if (esCuantico) cuanticos++;
-      if (salto > 30 && !esCuantico) saltos++;
+      if (salto > 30 && !esCuantico && !(s.camion && s.camion.estado === 'pasa')) saltos++;   // el camión la puede empujar de golpe
       for (const c of s.autos) if (!c.aplastado && !adentro(c.x, c.y)) autosAfuera++;
     }
     if (s.eventos.some((e) => e.t === 'gol')) goles++;

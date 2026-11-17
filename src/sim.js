@@ -8,6 +8,11 @@
 
 // Cancha grande (desde 2026-11-15): la cámara sigue a tu auto, así que no entra entera en pantalla.
 export const W = 960, H = 1440, FPS = 60;
+// Cada partido dura 3 minutos de juego (el reloj se para en la cuenta y en los goles).
+// Al terminar gana el que va arriba; si están empatados, gol de oro: el próximo gol gana.
+export const TIEMPO_PARTIDO = 3 * 60 * FPS;
+// El salto se sacó (2026-11-16): no aportaba. El código queda por si vuelve.
+const SALTO_ACTIVO = false;
 export const CAMPO = { L: 40, R: 920, T: 90, B: 1350, ochava: 80, arcoAncho: 260, arcoFondo: 60 };
 export const GOLES_PARA_GANAR = 3;
 
@@ -102,7 +107,7 @@ export function nuevoEstado() {
     })),
     pelota: { x: W / 2, y: H / 2, vx: 0, vy: 0, giro: 0 },
     pastillas: pastillas(),
-    fase: 'cuenta', reloj: CUENTA, ganador: -1, ultimoGol: -1, cuadro: 0, tiempoJuego: 0,
+    fase: 'cuenta', reloj: CUENTA, ganador: -1, ultimoGol: -1, cuadro: 0, tiempoJuego: 0, oro: false,
     camion: Math.random() < CAMION.prob ? {
       estado: 'espera', cuando: Math.round(CAMION.desde + Math.random() * (CAMION.hasta - CAMION.desde)),
       x: Math.round(CAMPO.L + 110 + Math.random() * (CAMPO.R - CAMPO.L - 220)), dir: Math.random() < 0.5 ? 1 : -1, y: 0, t: 0,
@@ -178,6 +183,13 @@ export function paso(s, entradas) {
   camion(s);
   s.autos.forEach(medir);
   revisarGol(s);
+  if (s.fase === 'juego' && !s.oro && s.tiempoJuego >= TIEMPO_PARTIDO) {
+    const [a, z] = s.autos;
+    if (a.goles !== z.goles) {
+      s.ganador = a.goles > z.goles ? 0 : 1;
+      s.fase = 'fin'; s.eventos.push({ t: 'tiempo' }, { t: 'fin', quien: s.ganador });
+    } else { s.oro = true; s.eventos.push({ t: 'oro' }); }
+  }
   s.pastillas.forEach((p) => { if (!p.activa && --p.espera <= 0) { p.activa = true; s.eventos.push({ t: 'nitroVuelve' }); } });
   return s;
 }
@@ -260,7 +272,7 @@ function manejar(s, c, a, e) {
 
   // Salto: se dispara al apretar (no al mantener) y tiene recarga.
   if (c.recarga > 0) c.recarga--;
-  if (e.salto && !c.saltoAntes && c.recarga === 0 && c.salto === 0) {
+  if (SALTO_ACTIVO && e.salto && !c.saltoAntes && c.recarga === 0 && c.salto === 0) {
     const lado = (e.right ? 1 : 0) - (e.left ? 1 : 0), atras = e.down && !e.up;
     let dx = atras ? -1 : (lado ? 0 : 1), dy = lado;     // en coordenadas del auto
     const n = Math.hypot(dx, dy); dx /= n; dy /= n;
@@ -573,7 +585,7 @@ function revisarGol(s) {
   c.goles++;
   s.ultimoGol = anota;
   s.fase = 'gol'; s.reloj = FESTEJO;
-  if (c.goles >= GOLES_PARA_GANAR) s.ganador = anota;
+  if (c.goles >= GOLES_PARA_GANAR || s.oro) s.ganador = anota;
   s.eventos.push({ t: 'gol', quien: anota });
   b.vx *= 0.3; b.vy *= 0.3;
 }
