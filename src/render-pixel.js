@@ -944,6 +944,13 @@ export function crearPintor(canvas, opciones = {}) {
         texto(b, t('instalar'), x + 17, yy + 5, { color: '#fff' });
       });
     }
+    // idioma: ES / EN / PT, a la izquierda del sonido; cada toque pasa al siguiente
+    {
+      const sw0 = 22 + t('sonido').length * 6, iw = 24;
+      boton('idioma', BW - sw0 - 6 - iw - 6, BH - 26, iw, 18, GRIS, (x, yy) => {
+        texto(b, (extra.idioma || 'es').toUpperCase(), x + iw / 2, yy + 5, { alinear: 'centro', color: '#c8f4ff' });
+      });
+    }
     // sonido: verde prendido; gris y tachado apagado
     const sw = 22 + t('sonido').length * 6;
     boton('sonido', BW - sw - 6, BH - 26, sw, 18, extra.sonido ? { cuerpo: '#2f8f6a', lado: '#1c5a42' } : GRIS, (x, yy) => {

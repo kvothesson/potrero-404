@@ -77,7 +77,9 @@ const TEXTOS = {
 };
 
 function detectar() {
-  const pedido = new URLSearchParams(location.search).get('idioma');
+  let elegido = null;
+  try { elegido = localStorage.getItem('potrero404.idioma'); } catch { /* sin almacenamiento */ }
+  const pedido = new URLSearchParams(location.search).get('idioma') || elegido;
   const lista = [pedido, ...(navigator.languages || [navigator.language])].filter(Boolean).map((l) => l.toLowerCase());
   for (const l of lista) {
     if (l.startsWith('es')) return 'es';
@@ -87,6 +89,13 @@ function detectar() {
   return 'en';
 }
 export const IDIOMA = detectar();
+// Elegir idioma a mano (botón de la portada): se recuerda y se recarga para que todo cambie junto.
+export const IDIOMAS = ['es', 'en', 'pt'];
+export function cambiarIdioma() {
+  const sig = IDIOMAS[(IDIOMAS.indexOf(IDIOMA) + 1) % IDIOMAS.length];
+  try { localStorage.setItem('potrero404.idioma', sig); } catch { /* sin almacenamiento */ }
+  const url = new URL(location.href); url.searchParams.delete('idioma'); location.replace(url);
+}
 document.documentElement.lang = IDIOMA;
 
 export function t(clave, vars = {}) {

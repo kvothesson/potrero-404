@@ -7,6 +7,7 @@ import { crearTactil, esTactil } from './tactil.js';
 import { conectar, codigoNuevo, urlApi } from './red.js';
 import { crearCuenta } from './cuenta.js';
 import { visita, evento, duracion } from './metricas.js';
+import { IDIOMA, cambiarIdioma } from './idioma.js';
 
 const params = new URLSearchParams(location.search);
 // Opción oculta ?grabar: el juego no corre solo; se avanza cuadro a cuadro desde afuera
@@ -281,6 +282,7 @@ canvas.addEventListener('pointerdown', (e) => {
   else if (id === 'otra') revanchaAhora();
   else if (id === 'desafiar') desafiar();
   else if (id === 'instalar') instalar();
+  else if (id === 'idioma') cambiarIdioma();
   else if (id === 'copiar') copiar(location.href, true);
   else if (id === 'respaldo') mostrarRespaldo = !mostrarRespaldo;
   else if (id === 'copiarRespaldo') copiar(codigoRespaldo(), false);
@@ -326,7 +328,7 @@ function extras() {
   return {
     pantalla: pantalla === 'amigo' ? 'online' : pantalla,
     intro: pantalla === 'intro' ? (() => { const t = (ahora() - introDesde) / 1000; return t < LOGO_S ? { fase: 'logo', t } : { fase: 'trailer', t: t - LOGO_S }; })() : null, rankeada: pantalla === 'online', pausa, tactil: !!tactil, seguir: aQuienSigo(),
-    yo, ranking, mostrarRespaldo, respaldo: codigoRespaldo(), camPelota, sonido: sonido.prendido(), instalable: !!instalable,
+    yo, ranking, mostrarRespaldo, respaldo: codigoRespaldo(), camPelota, sonido: sonido.prendido(), instalable: !!instalable, idioma: IDIOMA,
     confirmarSalida: confirmarSalida && rankeadaEnJuego(), aviso: aviso && ahora() < aviso.hasta ? 'abandono' : null,
     red: red && { lado: red.lado, jugadores: red.jugadores, codigo: red.codigo, caido: red.caido, conectado: red.conectado, ping: red.ping,
       listo: !!red.estado, nombres: red.nombres, elo: red.elo, rankeada: pantalla === 'online' },
