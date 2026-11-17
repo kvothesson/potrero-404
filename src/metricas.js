@@ -5,7 +5,28 @@ import { urlApi } from './red.js';
 import { IDIOMA } from './idioma.js';
 import { esTactil } from './tactil.js';
 
+// No se cuenta al equipo: tu jugador (Kvothesson) ni los navegadores marcados desde la página de métricas.
+const EQUIPO = ['v7trgxvw'];
+function esDelEquipo() {
+  try {
+    if (localStorage.getItem('potrero404.equipo') === '1') return true;
+    const yo = JSON.parse(localStorage.getItem('potrero404.yo') || 'null');
+    return !!(yo && EQUIPO.includes(yo.id));
+  } catch { return false; }
+}
+// De dónde viene: si el juego está dentro de otra página, el sitio que lo muestra.
+function origen() {
+  let ref = '';
+  try { ref = window.top !== window.self ? document.referrer : ''; } catch { ref = document.referrer; }
+  if (!ref) return 'directo';
+  if (/itch\.(io|zone)/.test(ref)) return 'itch';
+  if (/gamejolt\.(com|net)/.test(ref)) return 'gamejolt';
+  if (/newgrounds\.com|ungrounded\.net/.test(ref)) return 'newgrounds';
+  return 'otro';
+}
+
 export function evento(e) {
+  if (esDelEquipo()) return;
   try {
     fetch(`${urlApi()}/evento`, { method: 'POST', body: JSON.stringify(e), keepalive: true, headers: { 'content-type': 'text/plain' } }).catch(() => {});
   } catch { /* sin red */ }
@@ -24,6 +45,7 @@ export function visita() {
   }
   try { if (!primera) localStorage.setItem('potrero404.primera', hoy); localStorage.setItem('potrero404.ultima', hoy); } catch { /* sin almacenamiento */ }
   evento({ t: 'visita', vuelta, disp: esTactil() ? 'celu' : 'compu', idioma: IDIOMA });
+  if (vuelta === 'nuevo') evento({ t: 'origen', de: origen() });
 }
 
 export const duracion = (ms) => (ms < 60000 ? 'menos1' : ms < 180000 ? '1a3' : ms < 360000 ? '3a6' : 'mas6');

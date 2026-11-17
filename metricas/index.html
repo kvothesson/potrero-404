@@ -60,7 +60,10 @@
   <h2>Desde dónde</h2>
   <table id="tDesde"></table>
 
-  <p class="nota">Cada navegador solo recuerda la fecha de su primera visita para poder decir "vuelve a los N días"; esa fecha no se manda. Los partidos online y los jugadores salen del ranking.</p>
+  <h2>De qué sitio llegan las personas nuevas</h2>
+  <table id="tOrigen"></table>
+
+  <p class="nota">Tu jugador y los navegadores donde abriste esta página no se cuentan. Cada navegador solo recuerda la fecha de su primera visita para poder decir "vuelve a los N días"; esa fecha no se manda. Los partidos online y los jugadores salen del ranking.</p>
 </main>
 <div id="tip"></div>
 <script type="module">
@@ -73,6 +76,8 @@ try {
   const h = new URLSearchParams(location.hash.slice(1)).get('clave');
   if (h) { localStorage.setItem('potrero404.metricas', h); history.replaceState(null, '', location.pathname); }
   clave = localStorage.getItem('potrero404.metricas') || '';
+  // quien mira las métricas es del equipo: sus visitas y partidos dejan de contarse en este navegador
+  if (clave) localStorage.setItem('potrero404.equipo', '1');
 } catch { /* sin almacenamiento */ }
 const fmt = (n) => Number(n || 0).toLocaleString('es-AR');
 const pct = (a, b) => (b ? `${Math.round((a / b) * 100)} %` : '–');
@@ -147,6 +152,9 @@ async function cargar() {
   $('tDesde').innerHTML = '<tr><th>Visitas (todas)</th><th>Cantidad</th><th>Parte</th></tr>' +
     fila('Celu', visitasDe((p) => p.includes('celu'))) + fila('Compu', visitasDe((p) => p.includes('compu'))) +
     fila('En castellano', visitasDe((p) => p.at(-1) === 'es')) + fila('En inglés', visitasDe((p) => p.at(-1) === 'en')) + fila('En portugués', visitasDe((p) => p.at(-1) === 'pt'));
+  const origenes = [['directo', 'kvothesson.com o link directo'], ['itch', 'itch.io'], ['gamejolt', 'Game Jolt'], ['newgrounds', 'Newgrounds'], ['otro', 'otro sitio']];
+  const totO = origenes.reduce((a, [k]) => a + (tot[`origen:${k}`] || 0), 0);
+  $('tOrigen').innerHTML = '<tr><th>Sitio</th><th>Personas nuevas</th><th>Parte</th></tr>' + origenes.map(([k, nom]) => `<tr><td>${nom}</td><td>${fmt(tot['origen:' + k])}</td><td>${pct(tot['origen:' + k] || 0, totO)}</td></tr>`).join('');
   $('hora').textContent = 'actualizado ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 $('dias').onchange = cargar;
