@@ -33,6 +33,8 @@ const TEXTOS = {
   irmeIgual: { es: 'IRME', en: 'LEAVE', pt: 'SAIR' },
   abandonaste: { es: 'PERDISTE POR ABANDONO: BAJÓ TU ELO', en: 'YOU LOST BY LEAVING: YOUR ELO WENT DOWN', pt: 'VOCÊ PERDEU POR ABANDONO: SEU ELO CAIU' },
   oro: { es: 'GOL DE ORO', en: 'GOLDEN GOAL', pt: 'GOL DE OURO' },
+  conGoogle: { es: 'Continuar con Google', en: 'Continue with Google', pt: 'Continuar com o Google' },
+  e_ventana: { es: 'El navegador bloqueó la ventana. Permitila e intentá de nuevo, o entrá con tu mail.', en: 'The browser blocked the window. Allow it and try again, or use your email.', pt: 'O navegador bloqueou a janela. Permita e tente de novo, ou use seu e-mail.' },
   gana: { es: '3 GOLES O 3 MINUTOS', en: '3 GOALS OR 3 MINUTES', pt: '3 GOLS OU 3 MINUTOS' },
 
   // panel de cuenta (HTML)

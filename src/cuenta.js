@@ -47,8 +47,17 @@ export function crearCuenta({ api, obtenerYo, guardar, alCerrar }) {
   }
   function terminar() { const f = alListo; cerrar(); if (f) f(); }
 
+  // Dentro de otra página (itch.io, Game Jolt...) el navegador bloquea el botón de Google:
+  // ahí se abre una ventanita de kvothesson.com que entra y le devuelve la confirmación al juego.
+  const embebido = (() => { try { return window.top !== window.self; } catch { return true; } })();
+  if (embebido) {
+    addEventListener('message', (e) => {
+      if (e.origin !== location.origin || !e.data || typeof e.data.potreroGoogle !== 'string') return;
+      entrar({ google: e.data.potreroGoogle });
+    });
+  }
   const opcionesEntrar = (ya = []) =>
-    (GOOGLE_CLIENT_ID && googleListo && !ya.includes('google') ? '<div id="cGoogle" class="google"></div>' : '') +
+    (GOOGLE_CLIENT_ID && !ya.includes('google') ? (embebido ? `<button class="btn google-propio" id="cGooglePropio">G · ${t('conGoogle')}</button>` : (googleListo ? '<div id="cGoogle" class="google"></div>' : '')) : '') +
     (!ya.includes('mail') ? `<button class="btn verde" data-ir="mail">✉ ${t('conMail')}</button>` : '');
 
   function pintar() {
@@ -82,6 +91,11 @@ export function crearCuenta({ api, obtenerYo, guardar, alCerrar }) {
     if (error) html += `<p class="error">${esc(error)}</p>`;
     panel.innerHTML = html;
 
+    panel.querySelector('#cGooglePropio')?.addEventListener('click', () => {
+      const w = 420, h = 560, x = Math.max(0, (screen.width - w) / 2), y = Math.max(0, (screen.height - h) / 2);
+      const v = window.open(new URL('../entrar-google.html', import.meta.url).href, 'potrero-google', `width=${w},height=${h},left=${x},top=${y}`);
+      if (!v) ir(paso, t('e_ventana'));
+    });
     const g = panel.querySelector('#cGoogle');
     if (g) window.google.accounts.id.renderButton(g, { theme: 'filled_black', size: 'large', text: 'continue_with', shape: 'rectangular', width: Math.min(400, g.clientWidth || 300), locale: IDIOMA });
     panel.querySelectorAll('[data-ir]').forEach((b) => b.addEventListener('click', () => ir(b.dataset.ir)));

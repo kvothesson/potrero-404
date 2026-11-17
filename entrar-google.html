@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Potrero 404 · Entrar con Google</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #1c1830; color: #e8e4ff; font: 15px/1.5 system-ui, sans-serif; }
+  body { display: grid; place-items: center; text-align: center; padding: 16px; box-sizing: border-box; }
+  h1 { font-size: 18px; color: #fff4b0; margin: 0 0 14px; }
+  p { color: #b8b2dc; margin: 12px 0 0; }
+  #boton { display: inline-block; min-height: 44px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Potrero 404</h1>
+  <div id="boton"></div>
+  <p id="msj"></p>
+</main>
+<!-- Ventanita para entrar con Google cuando el juego está dentro de otra página (itch.io, Game Jolt,
+     Newgrounds): ahí el navegador bloquea Google. Acá es kvothesson.com, así que anda, y le
+     devuelve la confirmación de Google al juego que la abrió. Solo a kvothesson.com. -->
+<script type="module">
+import { GOOGLE_CLIENT_ID } from './src/cuentas-config.js';
+const DESTINO = location.origin;   // el juego embebido también es kvothesson.com
+const msj = document.getElementById('msj');
+const enEs = (navigator.language || '').startsWith('es');
+if (!window.opener) msj.textContent = enEs ? 'Abrí esta ventana desde el juego.' : 'Open this window from the game.';
+const sc = document.createElement('script');
+sc.src = 'https://accounts.google.com/gsi/client'; sc.async = true;
+sc.onload = () => {
+  google.accounts.id.initialize({
+    client_id: GOOGLE_CLIENT_ID,
+    callback: (r) => {
+      if (window.opener) {
+        window.opener.postMessage({ potreroGoogle: r.credential }, DESTINO);
+        msj.textContent = enEs ? 'Listo, volvé al juego.' : 'Done, go back to the game.';
+        setTimeout(() => window.close(), 600);
+      }
+    },
+  });
+  google.accounts.id.renderButton(document.getElementById('boton'), { theme: 'filled_black', size: 'large', text: 'continue_with', shape: 'rectangular', locale: enEs ? 'es' : 'en' });
+};
+document.head.appendChild(sc);
+</script>
+</body>
+</html>
