@@ -6,6 +6,7 @@ import { W, H, CAMPO, AUTOS, GOLES_PARA_GANAR, FPS, paredes, TIEMPO_PARTIDO } fr
 import { texto, icono, tecla } from './fuente.js';
 import { CANCHAS, hash } from './canchas.js';
 import { spritesAuto, disenoDe, ANGULOS, TAM } from './autos.js';
+import { dibujarCinematica } from './cinematica.js';
 // ?autos=Nombre1,Nombre2 fuerza los autos (para probar y filmar sin jugar online)
 const AUTOS_FORZADOS = typeof location !== 'undefined' ? (new URLSearchParams(location.search).get('autos') || '').split(',').map((x) => x.trim()).filter(Boolean) : [];
 // Sin palabras en pantalla: todo se dice con colores, números, íconos y teclas dibujadas,
@@ -948,8 +949,8 @@ export function crearPintor(canvas, opciones = {}) {
     });
   }
 
-  // Intro: el logo de Kvothesson (un hexágono que se dibuja y el nombre) y después un tráiler
-  // con dos bots jugando de verdad, franjas de cine y frases cortas. Cualquier tecla o toque lo saltea.
+  // Intro: el logo de Kvothesson (un hexágono que se dibuja y el nombre) y después la cinemática
+  // de la Ruta 404 (cinematica.js), que termina con dos corredores jugando de verdad. Cualquier tecla o toque la saltea.
   function intro(s, it) {
     const tt = it.t || 0;
     if (it.fase === 'logo') {
@@ -968,25 +969,7 @@ export function crearPintor(canvas, opciones = {}) {
         texto(b, t('presenta'), cx, y + 22, { alinear: 'centro', color: '#9890b8', sombra: null });
         b.globalAlpha = 1;
       }
-    } else {
-      // franjas de cine y la frase del momento
-      const f = Math.round(BH * 0.11);
-      b.fillStyle = '#000'; b.fillRect(0, 0, BW, f); b.fillRect(0, BH - f, BW, f);
-      const frases = ['intro1', 'intro2', 'intro3', 'intro4', 'intro5'];
-      const k = Math.min(frases.length - 1, Math.floor(tt / 2.4));
-      const fin = tt > 12;
-      if (!fin) {
-        const local = tt - k * 2.4, a = Math.min(1, local / 0.3, (2.4 - local) / 0.3);
-        b.globalAlpha = Math.max(0, a);
-        texto(b, t(frases[k]), BW / 2, BH - f + Math.round((f - 14) / 2), { esc: 2, alinear: 'centro', color: '#fff4b0', sombra: P.contorno });
-        b.globalAlpha = 1;
-      } else {
-        b.fillStyle = 'rgba(12,10,20,.6)'; b.fillRect(0, f, BW, BH - 2 * f);
-        const te = BW >= 272 ? 4 : 3;
-        texto(b, 'POTRERO 404', BW / 2 + 2, BH / 2 - 12, { esc: te, alinear: 'centro', color: '#ffb030', sombra: '#7a2a10' });
-        texto(b, 'POTRERO 404', BW / 2, BH / 2 - 14, { esc: te, alinear: 'centro', color: '#fff4b0', sombra: null });
-      }
-    }
+    } else dibujarCinematica(b, BW, BH, tt);
     // saltear, siempre a mano
     if (!LIMPIO) texto(b, t('saltear'), BW - 6, 6, { alinear: 'der', color: 'rgba(232,228,255,.7)', sombra: null });
   }
@@ -1102,7 +1085,7 @@ export function crearPintor(canvas, opciones = {}) {
   }
 
   function dibujar(s, extra = {}) {
-    nombresAhora = (extra.red && extra.red.nombres) || [null, null];
+    nombresAhora = (extra.red && extra.red.nombres) || extra.nombres || [null, null];
     zonas.length = 0;
     if (festejo > 0) festejo--;
     moverCamara(s, extra);

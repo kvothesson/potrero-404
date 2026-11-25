@@ -8,6 +8,7 @@ import { conectar, codigoNuevo, urlApi } from './red.js';
 import { crearCuenta } from './cuenta.js';
 import { visita, evento, duracion } from './metricas.js';
 import { IDIOMA, cambiarIdioma } from './idioma.js';
+import { CINE, RIVALES_INTRO } from './cinematica.js';
 
 const params = new URLSearchParams(location.search);
 // Opción oculta ?grabar: el juego no corre solo; se avanza cuadro a cuadro desde afuera
@@ -136,8 +137,9 @@ function salirDeOnline() {
   if (abandona) aviso = { hasta: ahora() + 6000 };
 }
 
-// ---------- intro: logo de Kvothesson y tráiler, solo la primera vez (o con ?intro), salteable ----------
-const LOGO_S = 2.4, TRAILER_S = 13.5;
+// ---------- intro: logo de Kvothesson y cinemática de la Ruta 404, solo la primera vez (o con ?intro), salteable ----------
+// La cinemática (cinematica.js) cuenta el lore y cierra con un partido real entre dos corredores.
+const LOGO_S = 2.4;
 let introDesde = 0, introJuega = false, botIntro = null;
 function quiereIntro() {
   if (params.get('sala')) return false;
@@ -146,7 +148,7 @@ function quiereIntro() {
 }
 function empezarIntro() {
   pantalla = 'intro'; introDesde = ahora(); introJuega = false;
-  estado = nuevoEstado(); botIntro = crearBot(0, 7); bot = crearBot(1, 7);
+  estado = nuevoEstado(); botIntro = crearBot(0, 8, 'completo'); bot = crearBot(1, 6, 'gambeta');
 }
 function terminarIntro() {
   try { localStorage.setItem('potrero404.intro', '1'); } catch { /* sin almacenamiento */ }
@@ -155,14 +157,14 @@ function terminarIntro() {
 }
 function pasoIntro() {
   const t = (ahora() - introDesde) / 1000;
-  if (t < LOGO_S) return;
+  if (t > LOGO_S + CINE.fin) { terminarIntro(); return; }
+  if (t < LOGO_S + CINE.juego) return;
   if (!introJuega) {
+    // el partido del cierre arranca ya empezado: se juegan 8 segundos de un saque antes de mostrarlo
     introJuega = true; estado.fase = 'juego'; estado.reloj = 0;
-    // el camión pasa a mitad del tráiler
-    estado.camion = { estado: 'espera', cuando: estado.tiempoJuego + Math.round(6.6 * FPS), x: 480 + (Math.random() < 0.5 ? -200 : 200), dir: Math.random() < 0.5 ? 1 : -1, y: 0, t: 0 };
+    for (let n = 0; n < 8 * FPS; n++) paso(estado, [botIntro(estado), bot(estado)]);
   }
   paso(estado, [botIntro(estado), bot(estado)]);
-  if (t > LOGO_S + TRAILER_S) terminarIntro();
 }
 async function empezar(modo) {
   sonido.despertar();
@@ -327,7 +329,7 @@ function vista() {
 function extras() {
   return {
     pantalla: pantalla === 'amigo' ? 'online' : pantalla,
-    intro: pantalla === 'intro' ? (() => { const t = (ahora() - introDesde) / 1000; return t < LOGO_S ? { fase: 'logo', t } : { fase: 'trailer', t: t - LOGO_S }; })() : null, rankeada: pantalla === 'online', pausa, tactil: !!tactil, seguir: aQuienSigo(),
+    intro: pantalla === 'intro' ? (() => { const t = (ahora() - introDesde) / 1000; return t < LOGO_S ? { fase: 'logo', t } : { fase: 'cine', t: t - LOGO_S }; })() : null, nombres: pantalla === 'intro' ? RIVALES_INTRO : null, rankeada: pantalla === 'online', pausa, tactil: !!tactil, seguir: aQuienSigo(),
     yo, ranking, mostrarRespaldo, respaldo: codigoRespaldo(), camPelota, sonido: sonido.prendido(), instalable: !!instalable, idioma: IDIOMA,
     confirmarSalida: confirmarSalida && rankeadaEnJuego(), aviso: aviso && ahora() < aviso.hasta ? 'abandono' : null,
     red: red && { lado: red.lado, jugadores: red.jugadores, codigo: red.codigo, caido: red.caido, conectado: red.conectado, ping: red.ping,
