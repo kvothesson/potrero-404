@@ -36,7 +36,11 @@ export function clave(e) {
     }
     case 'abandono': { const m = de(MODOS, e.modo); return m ? `abandono:${m}` : null; }
     case 'cuenta': { const c = de(['invitado', 'google', 'mail'], e.con); return c ? `cuenta:${c}` : null; }
-    case 'origen': { const o = de(['directo', 'itch', 'gamejolt', 'newgrounds', 'otro'], e.de); return o ? `origen:${o}` : null; }
+    case 'origen': {
+      // marcas propias de los links (?de=yt): cortas, solo letras, números y guion
+      if (typeof e.de === 'string' && /^de-[a-z0-9-]{1,12}$/.test(e.de)) return `origen:${e.de}`;
+      const o = de(['directo', 'itch', 'gamejolt', 'newgrounds', 'otro'], e.de); return o ? `origen:${o}` : null;
+    }
     case 'comparte': { const q = de(['sala', 'resultado', 'instalada'], e.que); return q ? `comparte:${q}` : null; }
     default: return null;
   }
