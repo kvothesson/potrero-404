@@ -5,8 +5,9 @@ const TEXTOS = {
   // portada (canvas, en mayúsculas: la fuente de píxeles no tiene minúsculas)
   practica: { es: 'PRÁCTICA', en: 'PRACTICE', pt: 'TREINO' },
   practicaSub: { es: 'CONTRA LA MÁQUINA', en: 'VS THE COMPUTER', pt: 'CONTRA O COMPUTADOR' },
-  online: { es: 'ONLINE', en: 'ONLINE', pt: 'ONLINE' },
-  onlineSub: { es: 'RIVAL AL AZAR · RANKING', en: 'RANDOM RIVAL · RANKED', pt: 'RIVAL ALEATÓRIO · RANKING' },
+  // el único modo: la rankeada (la barra | parte el nombre en dos líneas si el botón es angosto)
+  online: { es: 'SALIR A|LA RUTA', en: 'HIT THE|ROAD', pt: 'PEGAR A|ESTRADA' },
+  onlineSub: { es: 'RIVAL AL AZAR · VALE TABLA', en: 'RANDOM RIVAL · RANKED', pt: 'AO ACASO · VALE TABELA' },
   amigo: { es: 'CON UN AMIGO', en: 'WITH A FRIEND', pt: 'COM UM AMIGO' },
   amigoSub: { es: 'POR LINK · SIN RANKING', en: 'SHARE A LINK · UNRANKED', pt: 'POR LINK · SEM RANKING' },
   ranking: { es: 'RANKING', en: 'RANKING', pt: 'RANKING' },

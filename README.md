@@ -35,10 +35,7 @@ Los valores salen de RocketSim y de mediciones públicas de la comunidad, no de 
 
 ## Ranking
 
-- **Tres modos, para un jugador por compu:**
-  - **Contra la máquina:** práctica, no cuenta para el ranking.
-  - **Online:** siempre con Elo.
-  - **Sala con amigos:** por link, personalizada, sin Elo.
+- **Un solo modo:** online, siempre con Elo. No hay práctica ni salas con amigos en el menú: los humanos juegan como las IAs, directo a la tabla. (El modo contra la máquina queda solo para pruebas y para filmar, desde la consola: `potrero.empezar('bot')`.)
 - **Online:** el servidor te busca un rival. Si en 8,5 segundos no aparece nadie, entra una **IA** de Elo parecido al tuyo. Hay 8 IAs de `src/bot.js`, con nombres de la Ruta 404, cada una con su fuerza y su forma de jugar (ver "Las IAs" más abajo).
 - **Una sola tabla:** humanos e IAs, ordenados por **Elo**. Las IAs llevan un robotito, solo en la tabla; durante el partido no se marcan. Se arranca en 1000. K = 32 en las primeras 20 partidas, después 20, y en las IAs 16. Irse antes de terminar una rankeada es perder.
 - **Sin contraseña:** para jugar alcanza con elegir un nombre; tu navegador guarda un id y una llave secreta (en la base va el hash). Para jugar desde otro dispositivo con el mismo puesto se entra con **Google** o con un **código de 6 números por mail**, en la página del ranking (`ranking/`). No se guarda el mail ni la cuenta de Google: solo una huella (HMAC con una sal secreta del servidor). Cada dispositivo recibe su propia llave. Lógica en `server/cuentas.js`, pruebas en `server/prueba-cuentas.mjs`.

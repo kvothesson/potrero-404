@@ -27,7 +27,8 @@ const tactil = esTactil() ? crearTactil() : null;
 
 let estado = nuevoEstado();
 if (fisica) estado.fisica = fisica;
-// pantalla: 'menu' | 'bot' (práctica) | 'online' (rankeada, con Elo) | 'amigo' (sala por link, sin Elo)
+// pantalla: 'menu' | 'online' (rankeada, con Elo: el único modo que se ofrece) | 'bot' y 'amigo' (ya no están
+//           en el menú; 'bot' queda para pruebas y para filmar, desde la consola)
 //           | 'ranking' | 'nombre' (elegir nombre antes de la primera rankeada)
 let pantalla = 'menu', pausa = false, bot = null, red = null, ranking = null, despuesDelNombre = null, mostrarRespaldo = false;
 
@@ -142,7 +143,6 @@ function salirDeOnline() {
 const LOGO_S = 2.4;
 let introDesde = 0, introJuega = false, botIntro = null, rivalPractica = null;
 function quiereIntro() {
-  if (params.get('sala')) return false;
   if (params.has('intro')) return true;
   try { return !localStorage.getItem('potrero404.intro'); } catch { return false; }
 }
@@ -232,11 +232,9 @@ addEventListener('keydown', (e) => {
   if (e.code === 'KeyM') sonido.alternar();
   if (e.code === 'KeyB') alternarCamara();
   if (pantalla === 'menu') {
-    // 1 o Enter: contra la máquina · 2: online con Elo · 3: sala con amigos · 4: ranking
-    if (e.code === 'Enter' || e.code === 'NumpadEnter' || e.code === 'Digit1') empezar('bot');
-    else if (e.code === 'Digit2') empezar('online');
-    else if (e.code === 'Digit3') empezar('amigo');
-    else if (e.code === 'Digit4') verRanking();
+    // 1 o Enter: rankeada (el único modo, igual que las IAs) · 2: ranking
+    if (e.code === 'Enter' || e.code === 'NumpadEnter' || e.code === 'Digit1') empezar('online');
+    else if (e.code === 'Digit2') verRanking();
     return;
   }
   if (pantalla === 'ranking') { if (e.code === 'Escape' || e.code === 'Enter') volverAlMenu(); return; }
@@ -252,15 +250,6 @@ addEventListener('keydown', (e) => {
 });
 addEventListener('keyup', (e) => apretadas.delete(e.code));
 addEventListener('blur', () => apretadas.clear());
-
-// Desafiar a un amigo: se arma una sala nueva, se comparte (o copia) el link y te quedás esperando ahí.
-function desafiar() {
-  partidaEnCurso = null;
-  volverAlMenu();
-  empezar('amigo');
-  evento({ t: 'comparte', que: 'sala' });
-  copiar(location.href, true);
-}
 
 // Otra: en la rankeada busca un partido nuevo; con amigos, revancha; contra la máquina, de nuevo.
 function revanchaAhora() {
@@ -278,14 +267,13 @@ canvas.addEventListener('pointerdown', (e) => {
   sonido.despertar();
   const id = pintor.botonEn(e.clientX, e.clientY);
   if (!id) return;
-  if (id === 'bot' || id === 'online' || id === 'amigo') empezar(id);
+  if (id === 'online') empezar(id);
   else if (id === 'ranking') verRanking();
   else if (id === 'cuenta') abrirCuenta();
   else if (id === 'menu') { if (online()) salirDeOnline(); else volverAlMenu(); }
   else if (id === 'irme') salirDeOnline();
   else if (id === 'quedarme') confirmarSalida = false;
   else if (id === 'otra') revanchaAhora();
-  else if (id === 'desafiar') desafiar();
   else if (id === 'instalar') instalar();
   else if (id === 'idioma') cambiarIdioma();
   else if (id === 'copiar') copiar(location.href, true);
@@ -390,8 +378,7 @@ async function instalar() {
 if (quiereIntro()) empezarIntro();
 if (!GRABAR) { requestAnimationFrame(cuadro); visita(); }
 
-// Si se entra con un link de sala, ir directo a esa sala (con amigos, sin Elo).
-if (params.get('sala')) empezar('amigo');
+// Los links viejos de sala con amigos ya no abren una sala: se juega solo rankeado.
 
 // para pruebas automáticas desde la consola
 window.potrero = {

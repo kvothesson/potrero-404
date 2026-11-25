@@ -1,7 +1,7 @@
 {
   "name": "Potrero 404 · Fútbol con autos",
   "short_name": "Potrero 404",
-  "description": "Fútbol con autos online y gratis: contra la máquina, online con ranking o con un amigo por link.",
+  "description": "Fútbol con autos online y gratis: online con ranking, contra humanos e IAs en la misma tabla.",
   "id": "/potrero-404/",
   "start_url": "./",
   "scope": "./",

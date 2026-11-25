@@ -732,8 +732,8 @@ export function crearPintor(canvas, opciones = {}) {
     icono(b, 'trofeo', BW / 2 - 18, y0 + 8, 4);
     autoChico(i, BW / 2 - 52, y0 + 30, 0); autoChico(i, BW / 2 + 52, y0 + 30, ANGULOS / 2);
     marcador(s, BW / 2, y0 + 50, 2, i);
-    // al lado de "otra", sin molestar: desafiar a un amigo con un link (no en la sala con amigos, que ya lo es)
-    const conAmigo = extra.red && !extra.red.rankeada;
+    // solo "otra": ya no se desafía a un amigo con un link (todos los partidos son rankeados)
+    const conAmigo = true;
     const dw = 24 + t('desafiar').length * 6, ox = conAmigo ? BW / 2 - 30 : BW / 2 - (60 + 8 + dw) / 2;
     boton('otra', ox, y0 + 86, 60, 22, COLOR_AUTO[i], (x, y) => {
       if (!extra.tactil) tecla(b, '⏎', x + 8, y + 4, 21);
@@ -855,22 +855,23 @@ export function crearPintor(canvas, opciones = {}) {
     const colA = ancho ? { x: m, w: Math.round(BW / 2) - m - 6, y: 70 } : { x: m, w: BW - 2 * m, y: 72 };
     const colB = ancho ? { x: Math.round(BW / 2) + 6, w: Math.round(BW / 2) - m - 6, y: 70 } : null;
 
-    // los tres modos, con nombre y qué es cada uno
+    // un solo modo, igual que las IAs: rankeada contra un rival al azar. No hay práctica ni salas con amigos.
     const modos = [
-      ['bot', GRIS, t('practica'), t('practicaSub')],
       ['online', { cuerpo: '#2f8f6a', lado: '#1c5a42' }, t('online'), t('onlineSub')],
-      ['amigo', { cuerpo: '#4a4a9a', lado: '#2a2a62' }, t('amigo'), t('amigoSub')],
     ];
-    const alto = 36, sep = 7;
-    modos.forEach(([id, col, titulo, sub], k) => {
+    // el nombre va en una línea si entra (con la tecla al lado); si no, en dos, y el botón crece
+    const partes = modos[0][2].split('|'), junto = partes.join(' ');
+    const lineas = junto.length * 12 + 16 + (extra.tactil ? 0 : 26) <= colA.w ? [junto] : partes;
+    const alto = 18 + lineas.length * 18, sep = 7;
+    modos.forEach(([id, col, , sub], k) => {
       const y = colA.y + k * (alto + sep);
       boton(id, colA.x, y, colA.w, alto, col, (x, yy) => {
-        texto(b, titulo, x + 8, yy + 6, { esc: 2, color: '#fff' });
-        texto(b, sub, x + 8, yy + 24, { color: '#e0dcf6', sombra: null });
-        if (!extra.tactil) tecla(b, String(k + 1), x + colA.w - 18, yy + 6);
+        lineas.forEach((l, i) => texto(b, l, x + 8, yy + 6 + i * 18, { esc: 2, color: '#fff' }));
+        texto(b, sub, x + Math.max(3, Math.min(8, colA.w - sub.length * 6 - 2)), yy + alto - 12, { color: '#e0dcf6', sombra: null });
+        if (!extra.tactil) tecla(b, '⏎', x + colA.w - 26, yy + 6, 21);
       });
     });
-    let y = colA.y + 3 * (alto + sep) + 2;
+    let y = colA.y + modos.length * (alto + sep) + 2;
 
     // controles (en la compu); en el celu los botones de la pantalla ya muestran qué hacen
     const cx = colB ? colB.x : colA.x, cw = colB ? colB.w : colA.w;
@@ -929,7 +930,7 @@ export function crearPintor(canvas, opciones = {}) {
     boton('ranking', BW / 2 - rw / 2, BH - 26, rw, 18, { cuerpo: '#7a5a20', lado: '#4a3410' }, (x, yy) => {
       icono(b, 'trofeo', x + 5, yy + 3);
       texto(b, t('ranking'), x + 17, yy + 5, { color: '#fff' });
-      if (!extra.tactil) tecla(b, '4', x + rw - 6, yy - 9);
+      if (!extra.tactil) tecla(b, '2', x + rw - 6, yy - 9);
     });
     // instalar como app: solo si el navegador lo ofrece (Android, compu), abajo a la izquierda
     if (extra.instalable) {
