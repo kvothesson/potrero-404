@@ -16,6 +16,9 @@ function esDelEquipo() {
 }
 // De dónde viene: si el juego está dentro de otra página, el sitio que lo muestra.
 function origen() {
+  // ?de=yt (o cualquier marca corta) en el link: para saber de qué video o página llegó la gente
+  const de = (new URLSearchParams(location.search).get('de') || '').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 12);
+  if (de) return 'de-' + de;
   let ref = '';
   try { ref = window.top !== window.self ? document.referrer : ''; } catch { ref = document.referrer; }
   if (!ref) return 'directo';
