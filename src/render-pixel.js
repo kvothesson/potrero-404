@@ -5,6 +5,9 @@ import { t } from './idioma.js';
 import { W, H, CAMPO, AUTOS, GOLES_PARA_GANAR, FPS, paredes, TIEMPO_PARTIDO } from './sim.js';
 import { texto, icono, tecla } from './fuente.js';
 import { CANCHAS, hash } from './canchas.js';
+import { spritesAuto, disenoDe, ANGULOS, TAM } from './autos.js';
+// ?autos=Nombre1,Nombre2 fuerza los autos (para probar y filmar sin jugar online)
+const AUTOS_FORZADOS = typeof location !== 'undefined' ? (new URLSearchParams(location.search).get('autos') || '').split(',').map((x) => x.trim()).filter(Boolean) : [];
 // Sin palabras en pantalla: todo se dice con colores, números, íconos y teclas dibujadas,
 // para que se entienda en cualquier idioma.
 
@@ -60,60 +63,8 @@ const COLOR_AUTO = [
 ];
 const rgb = (c) => `rgb(${c[0]},${c[1]},${c[2]})`;
 
-// ---------- sprites de autos: 32 ángulos, rasterizados píxel por píxel ----------
-const ANGULOS = 32, TAM = 34;
+// ---------- sprites de autos: en autos.js (uno por corredor; los humanos, el común) ----------
 function hexA(h) { return [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]; }
-
-function spritesAuto(col) {
-  const out = [];
-  const c = { cuerpo: hexA(col.cuerpo), lado: hexA(col.lado), techo: hexA(col.techo), oscuro: hexA(col.oscuro) };
-  const vidrio = [168, 224, 255], vidrioOsc = [70, 110, 150], faro = [255, 244, 160], cola = [255, 60, 60], franja = [244, 244, 244];
-  const goma = [26, 26, 30], llanta = [120, 120, 130], borde = hexA(P.contorno);
-  for (let k = 0; k < ANGULOS; k++) {
-    const ang = k / ANGULOS * Math.PI * 2, co = Math.cos(ang), si = Math.sin(ang);
-    const cv = document.createElement('canvas'); cv.width = TAM; cv.height = TAM;
-    const g = cv.getContext('2d'), img = g.createImageData(TAM, TAM), d = img.data;
-    const pon = (x, y, col) => { if (x < 0 || y < 0 || x >= TAM || y >= TAM) return; const i = (y * TAM + x) * 4; d[i] = col[0]; d[i + 1] = col[1]; d[i + 2] = col[2]; d[i + 3] = 255; };
-    const hay = (x, y) => x >= 0 && y >= 0 && x < TAM && y < TAM && d[(y * TAM + x) * 4 + 3] > 0;
-    const loc = (x, y) => { const dx = x + 0.5 - TAM / 2, dy = y + 0.5 - TAM / 2; return [dx * co + dy * si, -dx * si + dy * co]; };
-    const L = 11, A = 5.6, ALTO = 3;
-    // 1) costado y ruedas: la planta del auto corrida hacia abajo (se ve el lateral)
-    for (let h = ALTO; h >= 1; h--) for (let y = 0; y < TAM; y++) for (let x = 0; x < TAM; x++) {
-      const [lx, ly] = loc(x, y - h);
-      const rueda = Math.abs(lx) > 4.5 && Math.abs(lx) < 8.8 && Math.abs(ly) < A + 1.2;
-      if (rueda && h >= 2) pon(x, y, Math.abs(Math.abs(lx) - 6.6) < 0.8 && h === 2 ? llanta : goma);
-      else if (Math.abs(lx) < L && Math.abs(ly) < A) pon(x, y, h === ALTO ? c.oscuro : c.lado);
-    }
-    // 2) techo y capó
-    for (let y = 0; y < TAM; y++) for (let x = 0; x < TAM; x++) {
-      const [lx, ly] = loc(x, y);
-      if (Math.abs(lx) >= L || Math.abs(ly) >= A) continue;
-      let col = c.cuerpo;
-      if (lx > 2 && lx <= 5 && Math.abs(ly) < 4.2) col = vidrio;
-      else if (lx >= -5 && lx <= 2 && Math.abs(ly) < 4.2) col = c.techo;
-      else if (lx >= -8 && lx < -5 && Math.abs(ly) < 3.8) col = vidrioOsc;
-      else if (lx > 9.3 && Math.abs(ly) > 2.4) col = faro;
-      else if (lx < -9.8 && Math.abs(ly) > 2.4) col = cola;
-      else if (Math.abs(ly) < 1.1) col = franja;
-      // luz de arriba a la izquierda: el borde de abajo del sprite un poco más oscuro
-      if (col === c.cuerpo && (-si * 0 + ly * 0) === 0) {
-        const [, ly2] = loc(x, y + 1);
-        if (Math.abs(ly2) >= A || Math.abs(loc(x, y + 1)[0]) >= L) col = c.lado;
-      }
-      pon(x, y, col);
-    }
-    // 3) contorno oscuro de 1 píxel
-    const borrador = [];
-    for (let y = 0; y < TAM; y++) for (let x = 0; x < TAM; x++) {
-      if (hay(x, y)) continue;
-      if (hay(x + 1, y) || hay(x - 1, y) || hay(x, y + 1) || hay(x, y - 1)) borrador.push([x, y]);
-    }
-    borrador.forEach(([x, y]) => pon(x, y, borde));
-    g.putImageData(img, 0, 0);
-    out.push(cv);
-  }
-  return out;
-}
 
 // ---------- pelota: 8 cuadros ----------
 // Luz Mala: una esfera de luz que titila (Ruta 404). Si no, la pelota de fútbol que rueda.
@@ -283,7 +234,15 @@ export function crearPintor(canvas, opciones = {}) {
   const { cv: fondo, M } = fondoFijo(cancha);
   const gente = cancha.publico === 'tribuna' ? armarPublico(M) : [];
   const hombres = cancha.publico === 'hombresTanque' ? armarHombres(M) : [];
-  const autos = COLOR_AUTO.map(spritesAuto);
+  // los sprites de cada auto se arman una vez por diseño y equipo, según quién juega
+  const cacheAutos = new Map();
+  let nombresAhora = [null, null];
+  function spritesDe(i) {
+    const d = disenoDe(AUTOS_FORZADOS[i] || nombresAhora[i]);
+    const clave = d.nombre + '|' + i;
+    if (!cacheAutos.has(clave)) cacheAutos.set(clave, spritesAuto(d, COLOR_AUTO[i]));
+    return cacheAutos.get(clave);
+  }
   const pelotas = cancha.pelota === 'luzMala' ? spritesLuzMala() : spritesPelota();
   const oscuro = document.createElement('canvas'); oscuro.width = VW; oscuro.height = VW;
   const octx = oscuro.getContext('2d');
@@ -599,7 +558,7 @@ export function crearPintor(canvas, opciones = {}) {
     b.fillStyle = 'rgba(0,0,0,.38)';
     b.beginPath(); b.ellipse(Math.round(x) + 1, Math.round(y) + 3, 10 - alto * 0.4, 6 - alto * 0.3, 0, 0, Math.PI * 2); b.fill();
     const k = Math.round(((c.rot % 360) + 360) % 360 / 360 * ANGULOS) % ANGULOS;
-    const sp = autos[i][k];
+    const sp = spritesDe(i)[k];
     // fuego del nitro, en píxeles detrás del auto
     if (c.nitroActivo) {
       const co = Math.cos(c.rot * Math.PI / 180), si = Math.sin(c.rot * Math.PI / 180);
@@ -732,7 +691,7 @@ export function crearPintor(canvas, opciones = {}) {
     return y0;
   }
 
-  function autoChico(i, x, y, rotK = 0) { b.drawImage(autos[i][rotK], Math.round(x - TAM / 2), Math.round(y - TAM / 2)); }
+  function autoChico(i, x, y, rotK = 0) { b.drawImage(spritesDe(i)[rotK], Math.round(x - TAM / 2), Math.round(y - TAM / 2)); }
 
   function cartelGol(s) {
     const i = s.ultimoGol, y0 = franja(70, COLOR_AUTO[i].techo);
@@ -1143,6 +1102,7 @@ export function crearPintor(canvas, opciones = {}) {
   }
 
   function dibujar(s, extra = {}) {
+    nombresAhora = (extra.red && extra.red.nombres) || [null, null];
     zonas.length = 0;
     if (festejo > 0) festejo--;
     moverCamara(s, extra);
@@ -1186,7 +1146,7 @@ export function crearPintor(canvas, opciones = {}) {
       const p = aPantalla(bx(propio.x), by(propio.y));
       const enPantalla = ((propio.rot + cam.ang * 180 / Math.PI) % 360 + 360) % 360;   // con cámara a la pelota, tu auto puede girar en pantalla
       const k = Math.round(enPantalla / 360 * ANGULOS) % ANGULOS;
-      b.drawImage(autos[extra.seguir][k], Math.round(p.x - TAM / 2), Math.round(p.y - TAM / 2 - alto));
+      b.drawImage(spritesDe(extra.seguir)[k], Math.round(p.x - TAM / 2), Math.round(p.y - TAM / 2 - alto));
     }
     // ?limpio: sin marcador ni botones (para la tarjeta del link y el tráiler)
     const limpio = LIMPIO;
