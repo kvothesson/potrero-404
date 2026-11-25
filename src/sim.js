@@ -114,14 +114,22 @@ export function nuevoEstado() {
     } : null,
     eventos: [],
   };
-  reubicar(s);
+  reubicar(s, Math.random());
   return s;
 }
 
-function reubicar(s) {
+// Saques como Rocket League: al azar a la izquierda, al medio o a la derecha, siempre mirando a la pelota.
+// El rojo queda espejado por el centro, así los dos están a la misma distancia.
+const SAQUES = [{ dx: -220, dy: -190 }, { dx: 0, dy: -250 }, { dx: 220, dy: -190 }];
+function reubicar(s, azarSaque) {
+  // el primero sale de Math.random (lo arma el servidor y lo manda entero); los de después de un gol, de azar(),
+  // para que la predicción online dé lo mismo que el servidor
+  const r = azarSaque != null ? azarSaque : azar(s, 404);
+  const sq = SAQUES[Math.min(2, Math.floor(r * 3))];
   s.autos.forEach((c, i) => {
-    const sp = AUTOS[i].spawn;
-    Object.assign(c, { x: sp.x, y: sp.y, rot: sp.rot, vx: 0, vy: 0, vel: 0, lat: 0, frenoActivo: false, nitroActivo: false,
+    const sg = i === 0 ? 1 : -1, x = W / 2 + sq.dx * sg, y = H / 2 + sq.dy * sg;
+    const rot = (Math.atan2(H / 2 - y, W / 2 - x) * 180 / Math.PI + 360) % 360;
+    Object.assign(c, { x, y, rot, vx: 0, vy: 0, vel: 0, lat: 0, frenoActivo: false, nitroActivo: false,
       salto: 0, recarga: 0, saltoAntes: true, aplastado: 0, derrape: 0 });
   });
   Object.assign(s.pelota, { x: W / 2, y: H / 2, vx: 0, vy: 0, buena: null });

@@ -16,7 +16,7 @@ const TEXTOS = {
   derrape: { es: 'DERRAPE', en: 'DRIFT', pt: 'DERRAPAR' },
   nitro: { es: 'NITRO', en: 'NITRO', pt: 'NITRO' },
   salto: { es: 'SALTO', en: 'JUMP', pt: 'PULO' },
-  pausa: { es: 'PAUSA', en: 'PAUSE', pt: 'PAUSA' },
+  camara: { es: 'CÁMARA', en: 'CAMERA', pt: 'CAMERA' },
   sonido: { es: 'SONIDO', en: 'SOUND', pt: 'SOM' },
   girar: { es: 'GIRÁ EL CELU PARA JUGAR MEJOR', en: 'TURN YOUR PHONE FOR A BETTER VIEW', pt: 'GIRE O CELULAR PARA JOGAR MELHOR' },
   desafiar: { es: 'DESAFIAR', en: 'CHALLENGE', pt: 'DESAFIAR' },

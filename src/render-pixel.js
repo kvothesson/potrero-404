@@ -805,18 +805,6 @@ export function crearPintor(canvas, opciones = {}) {
     });
   }
 
-  function cartelPausa(extra) {
-    const y0 = franja(78, '#9890b8');
-    icono(b, 'pausa', BW / 2 - 9, y0 + 6, 2);
-    const fila = [['pausa', 'sigue', 'ESC', 21], ['otra', 'otra', 'R', 13], ['menu', 'casa', 'Q', 13]];
-    fila.forEach(([id, ic, etq, ancho], k) => {
-      boton(id, BW / 2 - 102 + k * 70, y0 + 34, 64, 30, GRIS, (x, y) => {
-        if (!extra.tactil) { tecla(b, etq, x + 6, y + 8, ancho); icono(b, ic, x + 12 + ancho, y + 10); }
-        else icono(b, ic, x + 23, y + 6, 2);
-      });
-    });
-  }
-
   function portada(s, extra) {
     b.fillStyle = 'rgba(20,15,34,.86)'; b.fillRect(0, 0, BW, BH);
     const ancho = BW > BH;   // pantalla horizontal: modos a la izquierda, controles a la derecha
@@ -890,7 +878,7 @@ export function crearPintor(canvas, opciones = {}) {
       fila(yc + 6, 'flecha', t('mover'), [['WASD', 29], ['↑↓←→', 29]]);
       fila(yc + 30, 'derrape', t('derrape'), [['⇧', 21], ['C', 13]]);
       fila(yc + 54, 'nitro', t('nitro'), [['', 30], ['CTRL', 29]]);
-      fila(yc + 78, 'pausa', t('pausa'), [['ESC', 21]]);
+      fila(yc + 78, 'camara', t('camara'), [['B', 13]]);
       yc += 106;
     } else {
       // en el celu: palanca a la izquierda para manejar, botones redondos a la derecha
@@ -925,7 +913,7 @@ export function crearPintor(canvas, opciones = {}) {
     for (let k = 0; k < GOLES_PARA_GANAR; k++) b.drawImage(pelotas[(k * 3 + (s.cuadro >> 3)) & 7], gx - 30 + k * 16, gy + 11);
     icono(b, 'flecha', gx + 18, gy + 13); icono(b, 'trofeo', gx + 30, gy + 11, 2);
 
-    // ranking, sonido y pausa abajo
+    // ranking y sonido abajo
     const rw = 22 + t('ranking').length * 6;
     boton('ranking', BW / 2 - rw / 2, BH - 26, rw, 18, { cuerpo: '#7a5a20', lado: '#4a3410' }, (x, yy) => {
       icono(b, 'trofeo', x + 5, yy + 3);
@@ -1038,12 +1026,15 @@ export function crearPintor(canvas, opciones = {}) {
     const c = extra.seguir >= 0 ? s.autos[extra.seguir] : null;
     let tx, ty, angObj = cam.ang, suave = 0.25, ancla = anclaY();
     if (extra.pantalla === 'menu' || !c) { tx = bx(s.pelota.x); ty = by(s.pelota.y); angObj = 0; suave = 0.04; ancla = BH / 2; }
-    else {
+    else if (extra.camara === 'cancha') {
+      // la cancha entera y quieta; acostada si la pantalla es ancha
+      tx = bx(W / 2); ty = by(H / 2); angObj = BW > BH ? -Math.PI / 2 : 0; suave = 1; ancla = BH / 2;
+    } else {
       tx = bx(c.x); ty = by(c.y);
       // cámara a la pelota (ball cam de Rocket League): "arriba" es hacia la Luz Mala;
       // si no, "arriba" es hacia donde apunta tu auto
       const pdx = s.pelota.x - c.x, pdy = s.pelota.y - c.y;
-      if (extra.camPelota && Math.hypot(pdx, pdy) > 30) angObj = -(Math.atan2(pdy, pdx) * 180 / Math.PI + 90) * Math.PI / 180;
+      if (extra.camara !== 'auto' && Math.hypot(pdx, pdy) > 30) angObj = -(Math.atan2(pdy, pdx) * 180 / Math.PI + 90) * Math.PI / 180;
       else if (!c.aplastado) angObj = -(c.rot + 90) * Math.PI / 180;
       if (c.aplastado) suave = 0.05;
       // como la "rigidez" de Rocket League: cuanto más rápido, más abajo el auto y más se ve adelante
@@ -1127,12 +1118,17 @@ export function crearPintor(canvas, opciones = {}) {
     b.setTransform(1, 0, 0, 1, 0, 0);
     b.fillStyle = '#141018'; b.fillRect(0, 0, BW, BH);
     b.save();
-    b.translate(BW / 2, Math.round(cam.ancla)); b.rotate(cam.ang);
-    b.drawImage(gran, Math.round(cam.x - cam.cx), Math.round(cam.y - cam.cy));
+    // cancha entera: el mundo se pega achicado directo en la pantalla grande (aPantallaFinal), no acá
+    enCancha = extra.camara === 'cancha' && extra.pantalla !== 'menu' && extra.seguir >= 0;
+    if (enCancha) b.clearRect(0, 0, BW, BH);
+    else {
+      b.translate(BW / 2, Math.round(cam.ancla)); b.rotate(cam.ang);
+      b.drawImage(gran, Math.round(cam.x - cam.cx), Math.round(cam.y - cam.cy));
+    }
     b.restore();
     // tu auto, derecho (el del mundo quedó girado y con escalones; este lo tapa)
     const propio = extra.seguir >= 0 && extra.pantalla !== 'menu' ? s.autos[extra.seguir] : null;
-    if (propio && !propio.aplastado) {
+    if (propio && !propio.aplastado && !enCancha) {
       const alto = propio.salto > 0 ? Math.sin(Math.PI * (1 - propio.salto / 22)) * 7 : 0;
       const p = aPantalla(bx(propio.x), by(propio.y));
       const enPantalla = ((propio.rot + cam.ang * 180 / Math.PI) % 360 + 360) % 360;   // con cámara a la pelota, tu auto puede girar en pantalla
@@ -1144,12 +1140,16 @@ export function crearPintor(canvas, opciones = {}) {
     if (!limpio && extra.pantalla !== 'intro') hud(s);
     const enJuego = !limpio && (extra.pantalla === 'bot' || extra.pantalla === 'online');
     if (enJuego) {
-      if (s.fase !== 'fin') indicadores(s, extra.seguir);
-      radar(s, extra.seguir); avisoCamion(s);
-      // botón de cámara a la pelota, abajo del radar: la Luz Mala prendida o apagada
+      if (!enCancha) { if (s.fase !== 'fin') indicadores(s, extra.seguir); radar(s, extra.seguir); }
+      avisoCamion(s);
+      // botón de cámara, abajo del radar: muestra la cámara puesta (pelota, auto o cancha) y pasa a la siguiente
       const cw = extra.tactil ? 38 : 34, ch = extra.tactil ? 22 : 16;
-      boton('camPelota', BW - cw - 4, 74, cw, ch, extra.camPelota ? { cuerpo: '#2f8f6a', lado: '#1c5a42' } : GRIS, (x, y) => {
-        b.globalAlpha = extra.camPelota ? 1 : 0.4; b.drawImage(pelotas[0], x + (cw - 13) / 2, y + (ch - 13) / 2); b.globalAlpha = 1;
+      const col = extra.camara === 'pelota' ? { cuerpo: '#2f8f6a', lado: '#1c5a42' } : extra.camara === 'cancha' ? { cuerpo: '#4a4a9a', lado: '#2a2a62' } : GRIS;
+      boton('camara', BW - cw - 4, 74, cw, ch, col, (x, y) => {
+        const ix = x + (extra.tactil ? (cw - 13) / 2 : 3), iy = y + (ch - 13) / 2;
+        if (extra.camara === 'pelota') b.drawImage(pelotas[0], ix, iy);
+        else if (extra.camara === 'auto') b.drawImage(spritesDe(Math.max(0, extra.seguir))[ANGULOS / 4 * 3 % ANGULOS], Math.round(ix + 6.5 - TAM / 2), Math.round(iy + 6.5 - TAM / 2));
+        else iconoCancha(ix, iy);
         if (!extra.tactil) tecla(b, 'B', x + 18, y + 1);
       });
     }
@@ -1161,27 +1161,43 @@ export function crearPintor(canvas, opciones = {}) {
     else if (r && (!r.listo || r.jugadores < 2) && r.lado >= 0) esperaSala(r, extra);
     else {
       if (extra.confirmarSalida) cartelSalida(extra);
-      else if (extra.pausa) cartelPausa(extra);
       else if (s.fase === 'cuenta') {
         const n = Math.ceil(s.reloj / FPS);
         // primera cuenta de un partido contra un corredor (rankeada o práctica): su placa ocupa la pantalla
         // hasta que falta menos de un segundo
         const ladoRival = r ? (r.rankeada && r.lado >= 0 ? 1 - r.lado : -1) : extra.pantalla === 'bot' ? 1 : -1;
         const rival = ladoRival < 0 ? null : AUTOS_FORZADOS[ladoRival] || nombresAhora[ladoRival];
-        if (rival && CORREDORES[rival] && s.tiempoJuego === 0 && s.autos[0].goles + s.autos[1].goles === 0 && s.reloj > 0.8 * FPS && !extra.pausa) {
+        if (rival && CORREDORES[rival] && s.tiempoJuego === 0 && s.autos[0].goles + s.autos[1].goles === 0 && s.reloj > 0.8 * FPS) {
           placaCorredor(b, BW, BH, 3 - s.reloj / FPS, rival, { col: COLOR_AUTO[ladoRival], arriba: t('tuRival'), cuenta: n, detalle: true });
           return aPantallaFinal();
         }
         texto(b, n, BW / 2, BH / 2 - 22, { esc: 6, alinear: 'centro', color: '#fff4b0', sombra: P.contorno });
       } else if (s.fase === 'gol' && s.ganador < 0) cartelGol(s);
       else if (s.fase === 'gol' || s.fase === 'fin') cartelFinal(s, extra);
-      // en el celu, botón para pausar (o salir, si es online) arriba a la izquierda
-      if (extra.tactil && !extra.pausa) {
-        if (r) boton('menu', 4, 3, 30, 24, GRIS, (x, y) => icono(b, 'casa', x + 6, y + 3, 2));
-        else boton('pausa', 4, 3, 30, 24, GRIS, (x, y) => icono(b, 'pausa', x + 6, y + 3, 2));
-      }
+      // en el celu, botón para salir arriba a la izquierda (no hay pausa)
+      if (extra.tactil) boton('menu', 4, 3, 30, 24, GRIS, (x, y) => icono(b, 'casa', x + 6, y + 3, 2));
     }
     aPantallaFinal();
+  }
+  // una canchita de 13×13 para el botón de cámara
+  function iconoCancha(x, y) {
+    b.fillStyle = P.contorno; b.fillRect(x + 1, y, 11, 13);
+    b.fillStyle = rgb(P.pasto1); b.fillRect(x + 2, y + 1, 9, 11);
+    b.fillStyle = rgb(P.linea); b.fillRect(x + 2, y + 6, 9, 1); b.fillRect(x + 5, y + 1, 3, 1); b.fillRect(x + 5, y + 11, 3, 1);
+  }
+  // Cancha entera: el mundo achicado para que entre debajo del marcador, entre las barras de nitro.
+  // Se pega en la pantalla grande (no en el buffer chico) así el achique no se come las líneas.
+  let enCancha = false;
+  const CANCHA_ANCHO = (CAMPO.R - CAMPO.L) * K + 24, CANCHA_LARGO = (CAMPO.B - CAMPO.T + 2 * CAMPO.arcoFondo) * K + 16;
+  function canchaEntera(k, tx, ty) {
+    const acostada = BW > BH, arriba = 32, costado = 14;
+    const aw = BW - costado * 2, ah = BH - arriba - 6;
+    const z = acostada ? Math.min(aw / CANCHA_LARGO, ah / CANCHA_ANCHO) : Math.min(aw / CANCHA_ANCHO, ah / CANCHA_LARGO);
+    ctx.save();
+    ctx.translate((BW / 2 + tx) * k, (arriba + ah / 2 + ty) * k);
+    ctx.rotate(cam.ang); ctx.scale(z * k, z * k);
+    ctx.drawImage(gran, Math.round(cam.x - cam.cx), Math.round(cam.y - cam.cy));
+    ctx.restore();
   }
   // a pantalla, escala entera y sin suavizado; temblor de cámara en golpes y goles
   function aPantallaFinal() {
@@ -1190,6 +1206,7 @@ export function crearPintor(canvas, opciones = {}) {
     if (temblor > 0) temblor--;
     ctx.fillStyle = P.noche; ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.imageSmoothingEnabled = false;
+    if (enCancha) canchaEntera(k, tx, ty);
     ctx.drawImage(buf, tx * k, ty * k, BW * k, BH * k);
   }
 

@@ -30,16 +30,24 @@ if (fisica) estado.fisica = fisica;
 // pantalla: 'menu' | 'online' (rankeada, con Elo: el único modo que se ofrece) | 'bot' y 'amigo' (ya no están
 //           en el menú; 'bot' queda para pruebas y para filmar, desde la consola)
 //           | 'ranking' | 'nombre' (elegir nombre antes de la primera rankeada)
-let pantalla = 'menu', pausa = false, bot = null, red = null, ranking = null, despuesDelNombre = null, mostrarRespaldo = false;
+let pantalla = 'menu', bot = null, red = null, ranking = null, despuesDelNombre = null, mostrarRespaldo = false;
 
 // ---------- quién sos: id + llave guardados en este navegador ----------
 const CLAVE_YO = 'potrero404.yo';
 function cargarYo() { try { return JSON.parse(localStorage.getItem(CLAVE_YO)) || null; } catch { return null; } }
 function guardarYo(y) { try { if (y) localStorage.setItem(CLAVE_YO, JSON.stringify(y)); else localStorage.removeItem(CLAVE_YO); } catch { /* sin almacenamiento */ } }
 let yo = cargarYo();
-// Cámara a la pelota (como la ball cam de Rocket League): prendida de entrada, se recuerda.
-let camPelota = (() => { try { return localStorage.getItem('potrero404.camPelota') !== '0'; } catch { return true; } })();
-function alternarCamara() { camPelota = !camPelota; try { localStorage.setItem('potrero404.camPelota', camPelota ? '1' : '0'); } catch { /* sin almacenamiento */ } }
+// Cámara, se cambia con B y se recuerda: 'pelota' (ball cam de Rocket League, de entrada),
+// 'auto' (tu auto mirando arriba) o 'cancha' (la cancha entera, quieta).
+const CAMARAS = ['pelota', 'auto', 'cancha'];
+let camara = (() => {
+  try {
+    const c = localStorage.getItem('potrero404.camara');
+    if (CAMARAS.includes(c)) return c;
+    return localStorage.getItem('potrero404.camPelota') === '0' ? 'auto' : 'pelota';
+  } catch { return 'pelota'; }
+})();
+function alternarCamara() { camara = CAMARAS[(CAMARAS.indexOf(camara) + 1) % 3]; try { localStorage.setItem('potrero404.camara', camara); } catch { /* sin almacenamiento */ } }
 const codigoRespaldo = () => (yo ? `${yo.id}-${yo.llave}` : '');
 
 async function api(ruta, cuerpo) {
@@ -169,7 +177,7 @@ function pasoIntro() {
 async function empezar(modo) {
   sonido.despertar();
   pintor.limpiarMarcas();
-  pausa = false; mostrarRespaldo = false;
+  mostrarRespaldo = false;
   if (red) { red.cerrar(); red = null; }
   if (modo === 'online') {
     // rankeada: hace falta un nombre; el servidor busca rival o, si no hay, una IA de tu nivel
@@ -210,7 +218,7 @@ function volverAlMenu() {
   cerrarTexto();
   const url = new URL(location.href); url.searchParams.delete('sala'); history.replaceState(null, '', url);
   params.delete('sala');
-  pantalla = 'menu'; pausa = false; mostrarRespaldo = false;
+  pantalla = 'menu'; mostrarRespaldo = false;
 }
 
 async function verRanking() {
@@ -242,11 +250,10 @@ addEventListener('keydown', (e) => {
   if (actual && actual.fase === 'fin' && (e.code === 'Enter' || e.code === 'NumpadEnter')) { revanchaAhora(); return; }
   if (confirmarSalida && (e.code === 'Enter' || e.code === 'KeyQ')) { salirDeOnline(); return; }
   if (e.code === 'Escape') {
-    if (online()) { if (confirmarSalida) confirmarSalida = false; else salirDeOnline(); return; }   // online no se pausa: Esc sale (en rankeada, pregunta)
-    pausa = !pausa;
+    // no hay pausa: Esc sale (en rankeada, pregunta)
+    if (online()) { if (confirmarSalida) confirmarSalida = false; else salirDeOnline(); return; }
+    volverAlMenu();
   }
-  if (pausa && e.code === 'KeyR') { pausa = false; revancha(estado); pintor.limpiarMarcas(); }
-  if (pausa && e.code === 'KeyQ') volverAlMenu();
 });
 addEventListener('keyup', (e) => apretadas.delete(e.code));
 addEventListener('blur', () => apretadas.clear());
@@ -281,8 +288,7 @@ canvas.addEventListener('pointerdown', (e) => {
   else if (id === 'copiarRespaldo') copiar(codigoRespaldo(), false);
   else if (id === 'restaurar') pedirRespaldo();
   else if (id === 'sonido') sonido.alternar();
-  else if (id === 'camPelota') alternarCamara();
-  else if (id === 'pausa') pausa = !pausa;
+  else if (id === 'camara') alternarCamara();
 });
 
 async function copiar(texto, compartir) {
@@ -320,8 +326,8 @@ function vista() {
 function extras() {
   return {
     pantalla: pantalla === 'amigo' ? 'online' : pantalla,
-    intro: pantalla === 'intro' ? (() => { const t = (ahora() - introDesde) / 1000; return t < LOGO_S ? { fase: 'logo', t } : { fase: 'cine', t: t - LOGO_S }; })() : null, nombres: pantalla === 'intro' ? RIVALES_INTRO : pantalla === 'bot' && rivalPractica ? [yo ? yo.nombre : null, rivalPractica] : null, rankeada: pantalla === 'online', pausa, tactil: !!tactil, seguir: aQuienSigo(),
-    yo, ranking, mostrarRespaldo, respaldo: codigoRespaldo(), camPelota, sonido: sonido.prendido(), instalable: !!instalable, idioma: IDIOMA,
+    intro: pantalla === 'intro' ? (() => { const t = (ahora() - introDesde) / 1000; return t < LOGO_S ? { fase: 'logo', t } : { fase: 'cine', t: t - LOGO_S }; })() : null, nombres: pantalla === 'intro' ? RIVALES_INTRO : pantalla === 'bot' && rivalPractica ? [yo ? yo.nombre : null, rivalPractica] : null, rankeada: pantalla === 'online', tactil: !!tactil, seguir: aQuienSigo(),
+    yo, ranking, mostrarRespaldo, respaldo: codigoRespaldo(), camara, sonido: sonido.prendido(), instalable: !!instalable, idioma: IDIOMA,
     confirmarSalida: confirmarSalida && rankeadaEnJuego(), aviso: aviso && ahora() < aviso.hasta ? 'abandono' : null,
     red: red && { lado: red.lado, jugadores: red.jugadores, codigo: red.codigo, caido: red.caido, conectado: red.conectado, ping: red.ping,
       listo: !!red.estado, nombres: red.nombres, elo: red.elo, rankeada: pantalla === 'online' },
@@ -336,7 +342,7 @@ function cuadro(tAhora) {
   acumulado += Math.min(250, tAhora - antes); antes = tAhora;
   while (acumulado >= DT) {
     if (pantalla === 'intro') pasoIntro();
-    else if (pantalla === 'bot' && !pausa) {
+    else if (pantalla === 'bot') {
       paso(estado, [leerPropio(estado.autos[0]), bot(estado)]);
       sonido.eventos(estado);
     } else if (online() && red) {
@@ -355,11 +361,11 @@ function cuadro(tAhora) {
     partidaEnCurso = null;
   }
   if (tactil) {
-    tactil.mostrar(jugando && !pausa);
+    tactil.mostrar(jugando);
     const yoAuto = s && aQuienSigo() >= 0 ? s.autos[aQuienSigo()] : null;
     if (yoAuto) tactil.nitro(yoAuto.nitro);
   }
-  sonido.motores(!jugando || pausa || !s ? null : s);
+  sonido.motores(!jugando || !s ? null : s);
   pintor.dibujar(s || estado, extras());
   if (!GRABAR) requestAnimationFrame(cuadro);
 }

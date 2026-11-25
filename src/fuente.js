@@ -74,6 +74,7 @@ const ICONOS = {
   nitro: ['....o....', '...oyo...', '..oyyo...', '..oyyyo..', '.oyylyo..', '.oyllyyo.', '.oylllyo.', '..oylyo..', '...ooo...'],
   derrape: ['..wwwww..', '.w.....w.', 'w.......w', 'w.......w', '.......ww', '......www', '..g......', '.g.g.g...', 'g.g.g....'],
   salto: ['....w....', '...www...', '..wwwww..', '.ww.w.ww.', '....w....', '....w....', '.........', '.wwwwwww.', '.g.....g.'],
+  camara: ['.........', '.....w...', 'wwwww.ww.', 'w...w.www', 'w...wwwww', 'w...w.www', 'wwwww.ww.', '.....w...', '.........'],
   pausa: ['.........', '.ww...ww.', '.ww...ww.', '.ww...ww.', '.ww...ww.', '.ww...ww.', '.ww...ww.', '.ww...ww.', '.........'],
   sonido: ['....w....', '...ww..w.', 'wwwww...w', 'wwwww.w.w', 'wwwww.w.w', 'wwwww...w', '...ww..w.', '....w....', '.........'],
   trofeo: ['yyyyyyyyy', 'y.yyyyy.y', 'y.yylyy.y', '.yyylyyy.', '..yyyyy..', '...yyy...', '....y....', '...yyy...', '..ooooo..'],
