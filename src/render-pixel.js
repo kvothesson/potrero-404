@@ -38,7 +38,7 @@ function medidas() {
 }
 // La cámara gira (como el Mode 7 de la Super Nintendo): el mundo se dibuja en un cuadrado VW×VW
 // centrado en tu auto y después se pega girado en la pantalla, con tu auto siempre mirando arriba.
-const VW = 780;
+let VW = 780;
 const anclaY = () => Math.round(BH * (BW > BH ? 0.66 : 0.64));
 // margen de escenario alrededor de la cancha: lo bastante grande para que, con la cámara que gira,
 // nunca se vea dónde termina el mundo aunque vayas pegado a una esquina
@@ -1087,6 +1087,9 @@ export function crearPintor(canvas, opciones = {}) {
     nombresAhora = (extra.red && extra.red.nombres) || extra.nombres || [null, null];
     zonas.length = 0;
     if (festejo > 0) festejo--;
+    enCancha = extra.camara === 'cancha' && extra.pantalla !== 'menu' && extra.seguir >= 0;
+    // con la cancha entera se ve más mundo: el cuadrado crece hasta tapar toda la pantalla
+    tamMundo(enCancha ? Math.ceil(Math.max(BW, BH) / zCancha() + 80) : 780);
     moverCamara(s, extra);
     // 1) el mundo, alrededor de la cámara, en el cuadrado grande
     b = g;
@@ -1119,7 +1122,6 @@ export function crearPintor(canvas, opciones = {}) {
     b.fillStyle = '#141018'; b.fillRect(0, 0, BW, BH);
     b.save();
     // cancha entera: el mundo se pega achicado directo en la pantalla grande (aPantallaFinal), no acá
-    enCancha = extra.camara === 'cancha' && extra.pantalla !== 'menu' && extra.seguir >= 0;
     if (enCancha) b.clearRect(0, 0, BW, BH);
     else {
       b.translate(BW / 2, Math.round(cam.ancla)); b.rotate(cam.ang);
@@ -1189,10 +1191,17 @@ export function crearPintor(canvas, opciones = {}) {
   // Se pega en la pantalla grande (no en el buffer chico) así el achique no se come las líneas.
   let enCancha = false;
   const CANCHA_ANCHO = (CAMPO.R - CAMPO.L) * K + 24, CANCHA_LARGO = (CAMPO.B - CAMPO.T + 2 * CAMPO.arcoFondo) * K + 16;
+  const ARRIBA = 32, COSTADO = 14;
+  function zCancha() {
+    const aw = BW - COSTADO * 2, ah = BH - ARRIBA - 6;
+    return BW > BH ? Math.min(aw / CANCHA_LARGO, ah / CANCHA_ANCHO) : Math.min(aw / CANCHA_ANCHO, ah / CANCHA_LARGO);
+  }
+  function tamMundo(n) {
+    if (n === VW) return;
+    VW = n; gran.width = gran.height = n; oscuro.width = oscuro.height = n;
+  }
   function canchaEntera(k, tx, ty) {
-    const acostada = BW > BH, arriba = 32, costado = 14;
-    const aw = BW - costado * 2, ah = BH - arriba - 6;
-    const z = acostada ? Math.min(aw / CANCHA_LARGO, ah / CANCHA_ANCHO) : Math.min(aw / CANCHA_ANCHO, ah / CANCHA_LARGO);
+    const arriba = ARRIBA, ah = BH - ARRIBA - 6, z = zCancha();
     ctx.save();
     ctx.translate((BW / 2 + tx) * k, (arriba + ah / 2 + ty) * k);
     ctx.rotate(cam.ang); ctx.scale(z * k, z * k);
