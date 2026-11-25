@@ -460,7 +460,8 @@ async function cuadroEn(T, G, estado) {
   }
   else if (e.escena === 'outro') outro(tl);
   else if (e.escena === 'cierre') { await tabla(T, { titulo: 'la tabla sigue', pregunta: false, cierre: true }); fundido((T - 277) / 3); }
-  subtitulo(T);
+  // en el puente la pregunta ya está grande en la tabla: sin subtítulo encima
+  if (!(e.escena === 'tabla' && e.preguntaDesde && T >= e.preguntaDesde)) subtitulo(T);
   const k = estado.cuadros++;
   if (e.corte && k < 2) glitch(1 - k);
 }
