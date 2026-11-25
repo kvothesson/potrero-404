@@ -4,3 +4,4 @@ server/datos/
 nube/.secretos.json
 nube/.metricas-link.txt
 compartir/
+cortos/datos.json

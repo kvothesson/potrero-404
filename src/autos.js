@@ -175,41 +175,48 @@ const POR_NOMBRE = new Map(CORREDORES.map((d) => [d.nombre, d]));
 // El diseño que le toca a un jugador según su nombre (los nombres son únicos, IAs incluidas).
 export function disenoDe(nombre) { return POR_NOMBRE.get(nombre) || COMUN; }
 
-// Los 32 ángulos de un auto, rasterizados píxel por píxel: el costado corrido hacia abajo, el techo
-// pintado y un contorno oscuro de 1 píxel. `col` son los colores del equipo en hex.
-export function spritesAuto(d, col) {
+// Un auto en un ángulo (radianes, 0 = mirando a la derecha), rasterizado píxel por píxel: el costado
+// corrido hacia abajo, el techo pintado y un contorno oscuro de 1 píxel. `col` son los colores del
+// equipo en hex. `escala` lo dibuja más grande con más detalle (para las cinemáticas): es el mismo
+// diseño, solo que cada unidad del auto ocupa `escala` píxeles.
+export function dibujarAuto(d, col, ang, escala = 1) {
   const c = { cuerpo: hexA(col.cuerpo), lado: hexA(col.lado), techo: hexA(col.techo), oscuro: hexA(col.oscuro) };
-  const out = [];
-  for (let k = 0; k < ANGULOS; k++) {
-    const cv = document.createElement('canvas'); cv.width = TAM; cv.height = TAM;
-    const g = cv.getContext('2d'), img = g.createImageData(TAM, TAM), px = img.data;
-    const a = k / ANGULOS * Math.PI * 2, co = Math.cos(a), si = Math.sin(a);
-    const pon = (x, y, cc) => { if (x < 0 || y < 0 || x >= TAM || y >= TAM) return; const i = (y * TAM + x) * 4; px[i] = cc[0]; px[i + 1] = cc[1]; px[i + 2] = cc[2]; px[i + 3] = 255; };
-    const hay = (x, y) => x >= 0 && y >= 0 && x < TAM && y < TAM && px[(y * TAM + x) * 4 + 3] > 0;
-    const loc = (x, y) => { const dx = x + 0.5 - TAM / 2, dy = y + 0.5 - TAM / 2; return [dx * co + dy * si, -dx * si + dy * co]; };
-    // 1) costado y ruedas (u orugas)
-    for (let h = d.alto; h >= 1; h--) for (let y = 0; y < TAM; y++) for (let x = 0; x < TAM; x++) {
-      const [lx, ly] = loc(x, y - h);
-      const rueda = d.ruedas.find(([x0, x1]) => lx > x0 && lx < x1);
-      if (rueda && h >= 2 && Math.abs(ly) > 3 && Math.abs(ly) < 6.8 && d.planta(lx, 0)) {
-        const centro = (rueda[0] + rueda[1]) / 2;
-        pon(x, y, d.oruga ? (Math.floor(lx * 1.2 + 20) % 2 ? GOMA : [70, 70, 78]) : Math.abs(lx - centro) < 0.8 && h === 2 ? LLANTA : GOMA);
-      } else if (d.planta(lx, ly)) pon(x, y, h === d.alto ? c.oscuro : c.lado);
-    }
-    // 2) techo, con el borde de abajo del cuerpo un poco más oscuro (luz de arriba)
-    for (let y = 0; y < TAM; y++) for (let x = 0; x < TAM; x++) {
-      const [lx, ly] = loc(x, y);
-      if (!d.planta(lx, ly)) continue;
-      let cc = d.pintar(lx, ly, c);
-      if (cc === c.cuerpo) { const [l2x, l2y] = loc(x, y + 1); if (!d.planta(l2x, l2y)) cc = c.lado; }
-      pon(x, y, cc);
-    }
-    // 3) contorno
-    const borde = [];
-    for (let y = 0; y < TAM; y++) for (let x = 0; x < TAM; x++) if (!hay(x, y) && (hay(x + 1, y) || hay(x - 1, y) || hay(x, y + 1) || hay(x, y - 1))) borde.push([x, y]);
-    borde.forEach(([x, y]) => pon(x, y, BORDE));
-    g.putImageData(img, 0, 0);
-    out.push(cv);
+  const T = TAM * escala;
+  const cv = document.createElement('canvas'); cv.width = T; cv.height = T;
+  const g = cv.getContext('2d'), img = g.createImageData(T, T), px = img.data;
+  const co = Math.cos(ang), si = Math.sin(ang);
+  const pon = (x, y, cc) => { if (x < 0 || y < 0 || x >= T || y >= T) return; const i = (y * T + x) * 4; px[i] = cc[0]; px[i + 1] = cc[1]; px[i + 2] = cc[2]; px[i + 3] = 255; };
+  const hay = (x, y) => x >= 0 && y >= 0 && x < T && y < T && px[(y * T + x) * 4 + 3] > 0;
+  const loc = (x, y) => { const dx = (x + 0.5 - T / 2) / escala, dy = (y + 0.5 - T / 2) / escala; return [dx * co + dy * si, -dx * si + dy * co]; };
+  // 1) costado y ruedas (u orugas)
+  for (let h = d.alto * escala; h >= 1; h--) for (let y = 0; y < T; y++) for (let x = 0; x < T; x++) {
+    const [lx, ly] = loc(x, y - h);
+    const rueda = d.ruedas.find(([x0, x1]) => lx > x0 && lx < x1);
+    const hu = Math.ceil(h / escala);                     // la altura en unidades del auto
+    if (rueda && hu >= 2 && Math.abs(ly) > 3 && Math.abs(ly) < 6.8 && d.planta(lx, 0)) {
+      const centro = (rueda[0] + rueda[1]) / 2;
+      pon(x, y, d.oruga ? (Math.floor(lx * 1.2 + 20) % 2 ? GOMA : [70, 70, 78]) : Math.abs(lx - centro) < 0.8 && hu === 2 ? LLANTA : GOMA);
+    } else if (d.planta(lx, ly)) pon(x, y, hu === d.alto ? c.oscuro : c.lado);
   }
+  // 2) techo, con el borde de abajo del cuerpo un poco más oscuro (luz de arriba)
+  for (let y = 0; y < T; y++) for (let x = 0; x < T; x++) {
+    const [lx, ly] = loc(x, y);
+    if (!d.planta(lx, ly)) continue;
+    let cc = d.pintar(lx, ly, c);
+    if (cc === c.cuerpo) { const [l2x, l2y] = loc(x, y + escala); if (!d.planta(l2x, l2y)) cc = c.lado; }
+    pon(x, y, cc);
+  }
+  // 3) contorno
+  const borde = [];
+  for (let y = 0; y < T; y++) for (let x = 0; x < T; x++) if (!hay(x, y) && (hay(x + 1, y) || hay(x - 1, y) || hay(x, y + 1) || hay(x, y - 1))) borde.push([x, y]);
+  borde.forEach(([x, y]) => pon(x, y, BORDE));
+  g.putImageData(img, 0, 0);
+  return cv;
+}
+
+// Los 32 ángulos de un auto para el partido.
+export function spritesAuto(d, col) {
+  const out = [];
+  for (let k = 0; k < ANGULOS; k++) out.push(dibujarAuto(d, col, k / ANGULOS * Math.PI * 2));
   return out;
 }
