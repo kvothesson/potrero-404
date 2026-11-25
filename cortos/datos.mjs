@@ -25,6 +25,7 @@ const datos = {
   fecha: new Date().toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' }), servidor,
   humanos: ranking.lista.filter((f) => !f.ia).length,
   partidosLiga: totalLiga, ias,
+  tabla: ranking.lista.map((f) => ({ puesto: f.puesto, nombre: f.nombre, ia: f.ia, elo: f.elo, partidas: f.partidas, victorias: f.victorias })),
 };
 writeFileSync(new URL('./datos.json', import.meta.url), JSON.stringify(datos, null, 2));
 console.log(JSON.stringify(datos, null, 2));
