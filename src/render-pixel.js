@@ -6,7 +6,7 @@ import { W, H, CAMPO, AUTOS, GOLES_PARA_GANAR, FPS, paredes, TIEMPO_PARTIDO } fr
 import { texto, icono, tecla } from './fuente.js';
 import { CANCHAS, hash } from './canchas.js';
 import { spritesAuto, disenoDe, ANGULOS, TAM } from './autos.js';
-import { dibujarCinematica } from './cinematica.js';
+import { dibujarCinematica, placaCorredor, CORREDORES } from './cinematica.js';
 // ?autos=Nombre1,Nombre2 fuerza los autos (para probar y filmar sin jugar online)
 const AUTOS_FORZADOS = typeof location !== 'undefined' ? (new URLSearchParams(location.search).get('autos') || '').split(',').map((x) => x.trim()).filter(Boolean) : [];
 // Sin palabras en pantalla: todo se dice con colores, números, íconos y teclas dibujadas,
@@ -638,6 +638,13 @@ export function crearPintor(canvas, opciones = {}) {
     // marcador arriba, sobre las gradas, y el reloj del partido debajo
     marcador(s, BW / 2, 2);
     reloj(s, BW / 2, 19);
+    // quién juega: el nombre de cada uno al lado de su mitad del marcador, recortado a lo que entre
+    const entran = Math.max(0, Math.floor((BW / 2 - 36 - 38) / 6));
+    nombresAhora.forEach((n, i) => {
+      if (!n || !entran) return;
+      const corto = n.length > entran ? n.slice(0, entran - 1) + '.' : n;
+      texto(b, corto, BW / 2 + (i === 0 ? -36 : 36), 5, { alinear: i === 0 ? 'der' : 'izq', color: COLOR_AUTO[i].techo, sombra: P.contorno });
+    });
     // barras de nitro en las gradas de los costados, en bloques
     s.autos.forEach((c, i) => {
       const x = i === 0 ? 4 : BW - 10, y0 = i === 0 ? 70 : BH - 70 - 101;
@@ -1156,6 +1163,14 @@ export function crearPintor(canvas, opciones = {}) {
       else if (extra.pausa) cartelPausa(extra);
       else if (s.fase === 'cuenta') {
         const n = Math.ceil(s.reloj / FPS);
+        // primera cuenta de un partido contra un corredor (rankeada o práctica): su placa ocupa la pantalla
+        // hasta que falta menos de un segundo
+        const ladoRival = r ? (r.rankeada && r.lado >= 0 ? 1 - r.lado : -1) : extra.pantalla === 'bot' ? 1 : -1;
+        const rival = ladoRival < 0 ? null : AUTOS_FORZADOS[ladoRival] || nombresAhora[ladoRival];
+        if (rival && CORREDORES[rival] && s.tiempoJuego === 0 && s.autos[0].goles + s.autos[1].goles === 0 && s.reloj > 0.8 * FPS && !extra.pausa) {
+          placaCorredor(b, BW, BH, 3 - s.reloj / FPS, rival, { col: COLOR_AUTO[ladoRival], arriba: t('tuRival'), cuenta: n, detalle: true });
+          return aPantallaFinal();
+        }
         texto(b, n, BW / 2, BH / 2 - 22, { esc: 6, alinear: 'centro', color: '#fff4b0', sombra: P.contorno });
       } else if (s.fase === 'gol' && s.ganador < 0) cartelGol(s);
       else if (s.fase === 'gol' || s.fase === 'fin') cartelFinal(s, extra);
@@ -1165,7 +1180,10 @@ export function crearPintor(canvas, opciones = {}) {
         else boton('pausa', 4, 3, 30, 24, GRIS, (x, y) => icono(b, 'pausa', x + 6, y + 3, 2));
       }
     }
-    // a pantalla, escala entera y sin suavizado; temblor de cámara en golpes y goles
+    aPantallaFinal();
+  }
+  // a pantalla, escala entera y sin suavizado; temblor de cámara en golpes y goles
+  function aPantallaFinal() {
     const k = canvas.width / BW;
     const tx = temblor > 0 ? Math.round((Math.random() - 0.5) * temblor * 0.6) : 0, ty = temblor > 0 ? Math.round((Math.random() - 0.5) * temblor * 0.6) : 0;
     if (temblor > 0) temblor--;

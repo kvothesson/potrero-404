@@ -8,7 +8,7 @@ import { conectar, codigoNuevo, urlApi } from './red.js';
 import { crearCuenta } from './cuenta.js';
 import { visita, evento, duracion } from './metricas.js';
 import { IDIOMA, cambiarIdioma } from './idioma.js';
-import { CINE, RIVALES_INTRO } from './cinematica.js';
+import { CINE, RIVALES_INTRO, CORREDORES } from './cinematica.js';
 
 const params = new URLSearchParams(location.search);
 // Opción oculta ?grabar: el juego no corre solo; se avanza cuadro a cuadro desde afuera
@@ -140,7 +140,7 @@ function salirDeOnline() {
 // ---------- intro: logo de Kvothesson y cinemática de la Ruta 404, solo la primera vez (o con ?intro), salteable ----------
 // La cinemática (cinematica.js) cuenta el lore y cierra con un partido real entre dos corredores.
 const LOGO_S = 2.4;
-let introDesde = 0, introJuega = false, botIntro = null;
+let introDesde = 0, introJuega = false, botIntro = null, rivalPractica = null;
 function quiereIntro() {
   if (params.get('sala')) return false;
   if (params.has('intro')) return true;
@@ -195,7 +195,10 @@ async function empezar(modo) {
   } else {
     pantalla = 'bot';
     revancha(estado); if (fisica) estado.fisica = fisica;
-    bot = crearBot(1, 5);
+    // la práctica es contra uno de los 8 corredores, al azar, con su auto y su estilo (?rival=Nombre lo elige)
+    const nombresIA = Object.keys(CORREDORES);
+    rivalPractica = CORREDORES[params.get('rival')] ? params.get('rival') : nombresIA[(Math.random() * nombresIA.length) | 0];
+    bot = crearBot(1, CORREDORES[rivalPractica].nivel, CORREDORES[rivalPractica].estilo);
     partidaEnCurso = { modo: 'bot', desde: ahora() }; evento({ t: 'partida', modo: 'bot' });
   }
 }
@@ -329,7 +332,7 @@ function vista() {
 function extras() {
   return {
     pantalla: pantalla === 'amigo' ? 'online' : pantalla,
-    intro: pantalla === 'intro' ? (() => { const t = (ahora() - introDesde) / 1000; return t < LOGO_S ? { fase: 'logo', t } : { fase: 'cine', t: t - LOGO_S }; })() : null, nombres: pantalla === 'intro' ? RIVALES_INTRO : null, rankeada: pantalla === 'online', pausa, tactil: !!tactil, seguir: aQuienSigo(),
+    intro: pantalla === 'intro' ? (() => { const t = (ahora() - introDesde) / 1000; return t < LOGO_S ? { fase: 'logo', t } : { fase: 'cine', t: t - LOGO_S }; })() : null, nombres: pantalla === 'intro' ? RIVALES_INTRO : pantalla === 'bot' && rivalPractica ? [yo ? yo.nombre : null, rivalPractica] : null, rankeada: pantalla === 'online', pausa, tactil: !!tactil, seguir: aQuienSigo(),
     yo, ranking, mostrarRespaldo, respaldo: codigoRespaldo(), camPelota, sonido: sonido.prendido(), instalable: !!instalable, idioma: IDIOMA,
     confirmarSalida: confirmarSalida && rankeadaEnJuego(), aviso: aviso && ahora() < aviso.hasta ? 'abandono' : null,
     red: red && { lado: red.lado, jugadores: red.jugadores, codigo: red.codigo, caido: red.caido, conectado: red.conectado, ping: red.ping,

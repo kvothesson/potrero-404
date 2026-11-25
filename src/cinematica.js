@@ -21,10 +21,10 @@ const CORTES = [4.6, 9.2, 11.6, 14.6, CINE.juego];
 
 // ---------- sprites con caché (dibujar un auto grande cada cuadro es caro) ----------
 const cache = new Map();
-function sprite(nombre, ang, escala, silueta = false) {
-  const k = `${nombre}|${ang.toFixed(3)}|${escala}|${silueta}`;
+function sprite(nombre, ang, escala, silueta = false, col = AZUL) {
+  const k = `${nombre}|${ang.toFixed(3)}|${escala}|${silueta}|${col.cuerpo}`;
   if (cache.has(k)) return cache.get(k);
-  const a = dibujarAuto(disenoDe(nombre), AZUL, ang, escala);
+  const a = dibujarAuto(disenoDe(nombre), col, ang, escala);
   if (silueta) {
     // solo se ven las luces: todo lo demás negro, con un borde frío arriba
     const c = a.getContext('2d'), img = c.getImageData(0, 0, a.width, a.height), d = img.data;
@@ -178,8 +178,17 @@ function fila(g, D, t) {
   NOMBRES.forEach((n, i) => { if (i >= 4) autoDeEspaldas(g, n, D.W / 2 + (i - 5.5) * D.W * 0.13, yAtras, ancho ? 2 : 1, i >= prendidos); });
   NOMBRES.forEach((n, i) => { if (i < 4) autoDeEspaldas(g, n, D.W / 2 + (i - 1.5) * D.W * 0.225, yAdelante, ancho ? 3 : 2, i >= prendidos); });
 }
-function placa(g, D, t) {
-  const { W, H } = D, nombre = 'Silencio con Dientes', color = '#ff3050', parado = W < 360;
+// Placa de un corredor, estilo opening de anime: auto grande, nombre, lema, estilo y nivel.
+// La usan la intro y los partidos contra una IA (antes de la cuenta regresiva).
+// col: colores del equipo con que juega; arriba: renglón chico sobre el nombre; cuenta: número grande abajo.
+export const CORREDORES = {
+  'Chatarra': { nivel: 1, estilo: 'perseguidor', color: '#c8683a' }, 'Ternero Diesel': { nivel: 2, estilo: 'choque', color: '#e8dcc0' },
+  'Luz de Chacra': { nivel: 3, estilo: 'arquero', color: '#ffd860' }, 'Pombero 2.0': { nivel: 4, estilo: 'pared', color: '#b8a050' },
+  'Lobizon V8': { nivel: 5, estilo: 'nitro', color: '#ffb020' }, 'Gaucho de Ferrita': { nivel: 6, estilo: 'gambeta', color: '#80d8ff' },
+  'Tanque Nandu': { nivel: 7, estilo: 'contra', color: '#a8c070' }, 'Silencio con Dientes': { nivel: 8, estilo: 'completo', color: '#ff3050' },
+};
+export function placaCorredor(g, W, H, t, nombre, { col = AZUL, arriba = null, cuenta = null, detalle = false } = {}) {
+  const c = CORREDORES[nombre], color = c.color, parado = W < 360;
   g.fillStyle = '#0e0a1c'; g.fillRect(0, 0, W, H);
   g.fillStyle = color;
   g.beginPath();
@@ -192,22 +201,28 @@ function placa(g, D, t) {
     g.fillRect(Math.round(x), y, Math.round(largo), 1 + (i % 4 === 0 ? 1 : 0));
   }
   // el auto grande, entrando en diagonal
-  const a = sprite(nombre, -Math.PI / 2 + 0.55, parado ? 4 : 5);
+  const a = sprite(nombre, -Math.PI / 2 + 0.55, parado ? 4 : 5, false, col);
   const entra = Math.min(1, t / 0.35), x = (parado ? W * 0.5 : W * 0.72) + (1 - entra) * 120, y = parado ? H * 0.66 : H / 2;
   g.fillStyle = 'rgba(0,0,0,.3)'; g.beginPath(); g.ellipse(x + 8, y + 14, a.width * 0.36, a.width * 0.18, -0.9, 0, Math.PI * 2); g.fill();
   g.drawImage(a, Math.round(x - a.width / 2), Math.round(y - a.height / 2));
-  // el número, gigante y tenue
-  texto(g, '08', W - 10, H - 52, { esc: 6, alinear: 'der', color: 'rgba(14,10,28,.35)', sombra: null });
-  // el nombre y el lema
-  const esc = W >= 460 ? 4 : 3, x0 = parado ? 12 : 20;
+  // el número de corredor, gigante y tenue
+  texto(g, '0' + c.nivel, W - 10, H - 52, { esc: 6, alinear: 'der', color: 'rgba(14,10,28,.35)', sombra: null });
+  // el nombre en una o dos líneas, al tamaño más grande que entre
+  const p = nombre.toUpperCase().split(' ');
+  const lineas = p.length > 2 ? [p[0], p.slice(1).join(' ')] : p.length === 2 && nombre.length > 10 ? p : [nombre.toUpperCase()];
+  const lugar = parado ? W - 24 : W * 0.56, largo = Math.max(...lineas.map((l) => l.length));
+  const esc = [4, 3, 2].find((e) => largo * 6 * e <= lugar) || 2, x0 = parado ? 12 : 20;
   let yy = Math.round(H * (parado ? 0.1 : 0.22));
-  for (const l of ['SILENCIO', 'CON DIENTES']) {
+  if (arriba) texto(g, arriba, x0, yy - 14, { color, sombra: '#000' });
+  for (const l of lineas) {
     texto(g, l, x0 + 3, yy + 3, { esc, color: '#000', sombra: null });
     texto(g, l, x0, yy, { esc, color: '#fff4b0', sombra: null });
     yy += 9 * esc;
   }
   g.fillStyle = color; g.fillRect(x0, yy + 2, 120, 3);
-  texto(g, tr('cine6'), x0, yy + 12, { color: '#e8e4ff', sombra: '#000' });
+  texto(g, tr('lema' + c.nivel), x0, yy + 12, { color: '#e8e4ff', sombra: '#000' });
+  if (detalle) texto(g, tr('nivel') + ' ' + c.nivel + ' · ' + tr('estilo' + c.nivel), x0, yy + 26, { color, sombra: '#000' });
+  if (cuenta !== null) texto(g, cuenta, x0, H - (parado ? 70 : 62), { esc: 6, color: '#fff4b0', sombra: '#000' });
 }
 // el final: abajo se ve un partido real (lo dibuja el juego); acá van las franjas de cine y el título
 function cierre(g, D, t) {
@@ -253,7 +268,7 @@ export function dibujarCinematica(g, W, H, t) {
   else if (t < 9.2) banquina(g, D, t - 4.6);
   else if (t < 11.6) luces(g, D, t - 9.2);
   else if (t < 14.6) fila(g, D, t - 11.6);
-  else if (t < CINE.juego) placa(g, D, t - 14.6);
+  else if (t < CINE.juego) placaCorredor(g, W, H, t - 14.6, 'Silencio con Dientes');
   else cierre(g, D, t - CINE.juego);
   cartel(g, D, 'cine1', t, 0.7, 2.7);
   cartel(g, D, 'cine2', t, 2.8, 4.5);
