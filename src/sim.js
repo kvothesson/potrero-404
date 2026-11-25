@@ -39,7 +39,8 @@ const VEL_MAX_PELOTA = 15;             // 2,6 veces el tope sin nitro, como 6000
 // Empujón extra al pegarle (BALL_CAR_EXTRA_IMPULSE_*): factor según la velocidad del choque.
 const EXTRA_CURVA = [[0, 0.65], [500 * UU, 0.65], [2300 * UU, 0.55], [4600 * UU, 0.30]];
 const EXTRA_MAX = 4600 * UU, EXTRA_ADELANTE = 0.65;
-const NITRO_MAX = 100, NITRO_INICIAL = 34, NITRO_GASTO = 0.55;  // 33,3 por segundo: la barra llena dura 3 s
+// nitro: arrancás con un tercio en cada saque y al revivir, como Rocket League; la barra llena dura 3 s
+const NITRO_MAX = 100, NITRO_INICIAL = 34, NITRO_GASTO = 0.55;
 const AGARRE = 0.55;                   // cuánto de la velocidad de costado sobrevive por cuadro
 const DERRAPE_SUBE = 5 / 60, DERRAPE_BAJA = 2 / 60;  // POWERSLIDE_RISE_RATE / FALL_RATE
 const RUEDA_LIBRE = 0.33, FRENADA = 2.2, NITRO_EMPUJE = 0.62;  // 525, 3500 y 991,7 contra 1600 de Rocket League
@@ -129,10 +130,11 @@ function reubicar(s, azarSaque) {
   s.autos.forEach((c, i) => {
     const sg = i === 0 ? 1 : -1, x = W / 2 + sq.dx * sg, y = H / 2 + sq.dy * sg;
     const rot = (Math.atan2(H / 2 - y, W / 2 - x) * 180 / Math.PI + 360) % 360;
-    Object.assign(c, { x, y, rot, vx: 0, vy: 0, vel: 0, lat: 0, frenoActivo: false, nitroActivo: false,
+    Object.assign(c, { x, y, rot, nitro: NITRO_INICIAL, vx: 0, vy: 0, vel: 0, lat: 0, frenoActivo: false, nitroActivo: false,
       salto: 0, recarga: 0, saltoAntes: true, aplastado: 0, derrape: 0 });
   });
   Object.assign(s.pelota, { x: W / 2, y: H / 2, vx: 0, vy: 0, buena: null });
+  s.pastillas = pastillas();   // como Rocket League: en cada saque vuelven todas las pastillas
 }
 
 export function revancha(s) {
@@ -259,7 +261,7 @@ function camion(s) {
 function revivir(s, c, i) {
   if (--c.aplastado > 0) return;
   const sp = AUTOS[i].spawn;
-  Object.assign(c, { x: sp.x, y: sp.y, rot: sp.rot, vx: 0, vy: 0, vel: 0, lat: 0, salto: 0, recarga: 0 });
+  Object.assign(c, { x: sp.x, y: sp.y, rot: sp.rot, nitro: NITRO_INICIAL, vx: 0, vy: 0, vel: 0, lat: 0, salto: 0, recarga: 0 });
   s.eventos.push({ t: 'revive', quien: i });
 }
 
