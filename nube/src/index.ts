@@ -115,6 +115,21 @@ export class Liga extends DurableObject<Env> {
 }
 let ligaAsegurada = false;
 
+// Región de Durable Objects más cercana a quien pide (pistas de ubicación de Cloudflare, gratis).
+function region(req: Request): string | undefined {
+	const cf: any = (req as any).cf || {};
+	const lon = Number(cf.longitude);
+	switch (cf.continent) {
+		case "SA": return "sam";
+		case "NA": return lon < -100 ? "wnam" : "enam";
+		case "EU": return lon > 20 ? "eeur" : "weur";
+		case "AS": return "apac";
+		case "OC": return "oc";
+		case "AF": return "afr";
+		default: return undefined;
+	}
+}
+
 export default {
 	async fetch(req: Request, env: Env, ctx: any): Promise<Response> {
 		const url = new URL(req.url);
@@ -122,7 +137,9 @@ export default {
 			if (req.headers.get("Upgrade") !== "websocket") return new Response("Esperaba un WebSocket.", { status: 426 });
 			const codigo = (url.searchParams.get("codigo") || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8);
 			if (!codigo) return new Response("Falta el código de sala.", { status: 400 });
-			const sala = ctx.exports.Sala.get(ctx.exports.Sala.idFromName(codigo));
+			// La sala se crea cerca del primero que entra (la pista solo vale al crearla). Sin esto,
+			// desde Argentina caía lejos: 160-190 ms de ida y vuelta contra 18 ms del borde.
+			const sala = ctx.exports.Sala.get(ctx.exports.Sala.idFromName(codigo), { locationHint: region(req) });
 			return sala.fetch(req);
 		}
 		const fila = ctx.exports.Fila.get(ctx.exports.Fila.idFromName("global"));

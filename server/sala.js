@@ -10,7 +10,9 @@
 // - personalizada (sala con amigos por link): no cuenta para el ranking.
 import { FPS, nuevoEstado, paso, revancha, deBits } from '../src/sim.js';
 import { crearBot } from '../src/bot.js';
-const COLA_MAX = 10;        // si un jugador manda teclas más rápido que el servidor, no se acumula lag
+// Teclas guardadas por jugador. Se usa una por cuadro, así que lo que se apilaba por un tirón de
+// la red nunca se vaciaba y quedaba como atraso fijo (con 10 llegó a sumar 166 ms). Con 2 se descarta.
+const COLA_MAX = 2;
 export const ESPERA_IA = 8500;  // ms esperando a otro humano antes de llamar a una IA
 
 export function crearSala({ fisica, rankeada = false, pedirIA = null, alTerminar = null } = {}) {
