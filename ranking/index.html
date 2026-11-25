@@ -53,6 +53,14 @@
   .cuenta a { color: #c8f4ff; }
   .cuenta .google { margin: 0 0 12px; min-height: 44px; }
   .cuenta button:disabled { opacity: .5; }
+  .liga { margin-top: 20px; background: var(--panel); border: 3px solid var(--linea); padding: 12px 16px; font-size: 10px; }
+  .liga h2 { margin: 0 0 8px; font-size: 10px; color: var(--tenue); font-weight: normal; }
+  .liga ol { list-style: none; margin: 0; padding: 0; }
+  .liga li { padding: 5px 0; border-bottom: 1px solid var(--linea); display: flex; gap: 8px; flex-wrap: wrap; justify-content: space-between; color: var(--ia); }
+  .liga li:last-child { border-bottom: 0; }
+  .liga .gana { color: var(--texto); }
+  .liga .res { color: var(--elo); }
+  .liga .cuando { color: var(--tenue); }
   footer { margin-top: 28px; color: var(--tenue); font-size: 9px; }
   footer a { color: var(--tenue); }
   @media (max-width: 480px) { body { font-size: 10px; } td, th { padding: 8px 5px; } .ocultable { display: none; } }
@@ -66,6 +74,7 @@
     <thead><tr><th class="num">#</th><th>Jugador</th><th class="num">Elo</th><th class="num">Ganados</th><th class="num ocultable">Jugados</th></tr></thead>
     <tbody id="tabla"><tr><td colspan="5" class="estado">cargando…</td></tr></tbody>
   </table>
+  <section class="liga" id="liga" hidden><h2>últimos partidos entre IAs</h2><ol id="liga-lista"></ol></section>
   <div class="acciones">
     <a class="boton" href="../">jugar</a>
     <a class="boton gris" href="https://kvothesson.com/">kvothesson.com</a>
@@ -112,6 +121,24 @@ async function cargar() {
   } catch {
     tabla.innerHTML = '<tr><td colspan="5" class="estado">no se pudo cargar: probá de nuevo en un rato</td></tr>';
   }
+}
+// La liga de IAs: los últimos partidos que jugaron entre ellas (server/liga.js). Si falla, no se muestra.
+function hace(fecha) {
+  const m = Math.max(0, Math.round((Date.now() - Date.parse(fecha)) / 60000));
+  return m < 1 ? 'recién' : m < 60 ? `hace ${m} min` : m < 1440 ? `hace ${Math.round(m / 60)} h` : `hace ${Math.round(m / 1440)} d`;
+}
+async function cargarLiga() {
+  try {
+    const r = await fetch(`${API}/liga?n=5`);
+    if (!r.ok) throw new Error();
+    const d = await r.json();
+    if (!d.ultimos.length) return;
+    document.getElementById('liga-lista').innerHTML = d.ultimos.map((p) => {
+      const n = (lado, i) => `<span class="${p.ganador === i ? 'gana' : ''}">${escapar(lado.nombre)}</span>`;
+      return `<li><span>${n(p.azul, 0)} <span class="res">${p.goles[0]}-${p.goles[1]}</span> ${n(p.rojo, 1)}</span><span class="cuando">${hace(p.fecha)}</span></li>`;
+    }).join('');
+    document.getElementById('liga').hidden = false;
+  } catch { /* sin liga, la tabla sigue igual */ }
 }
 // Tu cuenta: entrar con Google o con un código por mail. Sin contraseñas.
 // Entrar une la cuenta al jugador de este navegador (conservás el puesto) y te deja jugar
@@ -229,6 +256,8 @@ if (GOOGLE_CLIENT_ID) {
 pintarCuenta();
 traerCuentas().then(() => { pintarCuenta(); cargar(); });
 setInterval(() => { if (!document.hidden) cargar(); }, 20000);
+cargarLiga();
+setInterval(() => { if (!document.hidden) cargarLiga(); }, 60000);
 </script>
 </body>
 </html>

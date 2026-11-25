@@ -39,7 +39,7 @@ Los valores salen de RocketSim y de mediciones públicas de la comunidad, no de 
   - **Contra la máquina:** práctica, no cuenta para el ranking.
   - **Online:** siempre con Elo.
   - **Sala con amigos:** por link, personalizada, sin Elo.
-- **Online:** el servidor te busca un rival. Si en 8,5 segundos no aparece nadie, entra una **IA** de Elo parecido al tuyo. Hay 8 IAs, niveles 1 a 8 de `src/bot.js`, con nombres de la Ruta 404.
+- **Online:** el servidor te busca un rival. Si en 8,5 segundos no aparece nadie, entra una **IA** de Elo parecido al tuyo. Hay 8 IAs de `src/bot.js`, con nombres de la Ruta 404, cada una con su fuerza y su forma de jugar (ver "Las IAs" más abajo).
 - **Una sola tabla:** humanos e IAs, ordenados por **Elo**. Las IAs llevan un robotito, solo en la tabla; durante el partido no se marcan. Se arranca en 1000. K = 32 en las primeras 20 partidas, después 20, y en las IAs 16. Irse antes de terminar una rankeada es perder.
 - **Sin contraseña:** para jugar alcanza con elegir un nombre; tu navegador guarda un id y una llave secreta (en la base va el hash). Para jugar desde otro dispositivo con el mismo puesto se entra con **Google** o con un **código de 6 números por mail**, en la página del ranking (`ranking/`). No se guarda el mail ni la cuenta de Google: solo una huella (HMAC con una sal secreta del servidor). Cada dispositivo recibe su propia llave. Lógica en `server/cuentas.js`, pruebas en `server/prueba-cuentas.mjs`.
 - **Configurar las cuentas en Cloudflare:** los secretos `SAL` (ya cargado) y `RESEND` (clave de [Resend](https://resend.com), que manda los mails desde `potrero@kvothesson.com`) van en `nube/.secretos.json`, que no se sube al repo, y se suben con `cf deploy --secrets-file .secretos.json`. Mientras falte alguno, la página dice "muy pronto". El botón de Google aparece cuando `src/cuentas-config.js` tiene el ID de cliente (es público).
@@ -47,6 +47,43 @@ Los valores salen de RocketSim y de mediciones públicas de la comunidad, no de 
 - **Dónde se guarda:** en Cloudflare D1 (`potrero-404-ranking`), que deja volver a cualquier momento de los últimos 30 días. En la PC, el servidor local usa SQLite en `server/datos/ranking.sqlite`.
 - **Código:** `server/ranking.js` (Elo, registro, tabla), `server/api.js` (rutas y fila) y `server/sala.js` (sala rankeada con IA). Los usan igual el servidor local y `nube/`.
 - **Prueba de punta a punta:** `node server/prueba-ranking.mjs <servidor>`.
+
+## Las IAs: reglas parejas y estilos
+
+Humanos e IAs comparten la tabla, así que las IAs juegan con las reglas de un humano (`src/bot.js`):
+
+- **Reacción humana:** cada IA decide con una foto del partido de hace 12 a 16 cuadros (200 a 267 ms; 200 ms es la reacción visual simple de una persona atenta). Ninguna baja de 200 ms. Lo que pasó después lo tiene que adivinar, como cualquiera: recuerda lo que apretó y predice la pelota con los rebotes.
+- **Mismas teclas:** solo arriba, abajo, izquierda, derecha, freno de mano y nitro, y cambia de teclas a lo sumo 15 veces por segundo.
+- **Solo lo que se ve:** autos, pelota, barras de nitro de las gradas, pastillas y el aviso del camión. No lee el azar de la simulación ni nada interno del rival.
+- **Nadie se queda esperando:** si la pelota está quieta o sin nadie cerca más de 2,5 s, cualquier estilo sale a buscarla.
+
+`crearBot(lado, nivel, estilo)`: el nivel (1 a 8) es la fuerza (retraso, cada cuánto decide, cuánto predice, puntería, descuidos) y el estilo la forma de jugar. Sin estilo juega `completo`. El estilo de cada IA está en `IAS` de `server/ranking.js` y en la columna `estilo` de `jugadores` (se agrega sola en una base vieja, sin tocar Elo, partidas ni victorias).
+
+| IA | Fuerza | Estilo | Cómo juega | Reacción |
+|---|---|---|---|---|
+| Chatarra | 1 | perseguidor | Va derecho a la pelota, sin plan ni defensa | 267 ms |
+| Ternero Diesel | 2 | choque | Si el rival está cerca de la pelota, le va al auto con nitro | 250 ms |
+| Luz de Chacra | 3 | arquero | Vive en el arco, ataja y despeja a los costados | 250 ms |
+| Pombero 2.0 | 4 | pared | Predice los rebotes y prefiere el tiro de banda | 233 ms |
+| Lobizon V8 | 5 | nitro | Junta pastillas y ataca siempre a fondo | 233 ms |
+| Gaucho de Ferrita | 6 | gambeta | Lleva la pelota pegada, despacio, y define cerca | 217 ms |
+| Tanque Nandu | 7 | contra | Espera atrás y sale de contra con nitro | 217 ms |
+| Silencio con Dientes | 8 | completo | Llega antes que el rival, defiende si no llega, controla si nadie lo apura | 200 ms |
+
+**Prueba:** `node server/prueba-estilos.mjs [partidos por cruce] [contra el principiante]` juega sin pantalla un todos contra todos entre las 8 (en 4 hilos), muestra la tabla, las métricas que prueban que juegan distinto (distancia al arco, posesión, nitro, pastillas, bandas, choques), que ningún partido se traba (pelota quieta 30 s), mide la reacción (dos mundos iguales, se cambia la pelota en uno y se cuenta cuánto tarda en apretar distinto) y las enfrenta con un principiante simulado (el bot viejo, con 250 ms de reacción). Sale con error si algo no se cumple.
+
+## Liga de IAs
+
+Para que la tabla no esté muerta cuando no hay nadie, las 8 IAs juegan entre ellas partidos de verdad en el servidor, sin pantalla, y cada uno cuenta para el Elo igual que los de los humanos.
+
+- **Reglas de siempre:** la misma `src/sim.js` con `crearBot`, 3 minutos o 3 goles, gol de oro. Se anota con `anotar()` de `server/ranking.js`, en las mismas tablas `jugadores` y `partidas`. Entre IAs K = 16 para los dos, así que el Elo que gana una lo pierde la otra.
+- **Emparejamiento:** como con los humanos, por Elo parecido. Se elige una IA al azar y su rival es una de las tres de Elo más cercano. Nunca contra sí misma.
+- **Ritmo:** una tanda de 2 partidos cada 10 minutos, unos 288 por día.
+- **Dónde corre:** en Cloudflare, el Durable Object `Liga` se despierta con su alarma, juega la tanda y se vuelve a programar. Arranca solo la primera vez que alguien pide `/ranking` o `/liga` después de un despliegue. No va en un cron porque en el plan gratis un cron tiene 10 ms de CPU y un partido cuesta unos 70 a 400 ms. Un Durable Object tiene 30 s por invocación. En la PC lo corre `server/local.mjs` con un `setInterval` (`LIGA_CADA=3000` para acelerar, `LIGA_CADA=0` para apagarla).
+- **Partidos trabados:** con el bot de hoy, cerca del 1 % se traba (la pelota queda clavada). Si la pelota no se mueve en 30 s de juego, o el partido pasa los 12 minutos, se corta y no se anota. Se cuenta aparte en `trabados`.
+- **Costo:** todo dentro del plan gratis. Por día son 144 alarmas, unas 2.500 filas escritas en D1 (el límite es 100.000) y unas 17 consultas por tanda (el límite es 50 por invocación).
+- **Ver desde afuera, sin jugar:** `GET /liga` devuelve los últimos partidos (`?n=` hasta 50), la cuenta por día y el Elo de cada IA. La página del ranking muestra los últimos 5.
+- **Prueba:** `node server/prueba-liga.mjs` levanta su propio servidor local con una base temporal y la liga acelerada. Revisa que los partidos terminen bien, que el Elo se mueva y se conserve, y que `/liga` responda. Al final corre `prueba-ranking.mjs` contra ese servidor. Con una URL, `node server/prueba-liga.mjs https://potrero-404.kvothesson.workers.dev`, solo mira `/liga` de ese servidor y revisa que los partidos tengan sentido.
 
 ## Canchas
 

@@ -2,6 +2,8 @@
 // salas online por WebSocket, todo en el mismo puerto. En internet esto lo hace Cloudflare (nube/).
 //   node server/local.mjs            → http://127.0.0.1:5421
 //   LAG=120 node server/local.mjs    → simula 120 ms de ida y 120 de vuelta, para probar el lag
+//   LIGA_CADA=3000 node server/local.mjs → la liga de IAs juega una tanda cada 3 s (por defecto cada
+//                                         10 min, como en Cloudflare; LIGA_CADA=0 la apaga). LIGA_TANDA = partidos por tanda.
 // El ranking local se guarda en server/datos/ranking.sqlite (no se sube al repo).
 import { createServer } from 'node:http';
 import { readFile, mkdir } from 'node:fs/promises';
@@ -13,6 +15,7 @@ import { crearSala, ESPERA_IA } from './sala.js';
 import { api, crearFila } from './api.js';
 import { preparar, verificar, elegirIA, anotar } from './ranking.js';
 import { mailResend } from './cuentas.js';
+import { prepararLiga, jugarTanda, CADA_MS, POR_TANDA } from './liga.js';
 
 const RAIZ = fileURLToPath(new URL('..', import.meta.url));
 const PUERTO = Number(process.env.PORT || 5421);
@@ -29,6 +32,7 @@ const db = {
   correr: async (sql, ...p) => sqlite.prepare(sql).run(...p),
 };
 await preparar(db);
+await prepararLiga(db);
 const buscar = crearFila(ESPERA_IA - 500);
 // Cuentas: en la PC el código del mail no se manda, se muestra acá en la consola.
 // Con RESEND=<clave> sí se manda de verdad.
@@ -94,5 +98,23 @@ wss.on('connection', async (ws, req) => {
     if (sala.vacia) { clearInterval(sala.reloj); salas.delete(codigo); }
   });
 });
+
+// Liga de IAs: una tanda cada tanto. Entre cuadro y cuadro de simulación cede el turno,
+// para que las salas que estén jugando no se traben.
+const LIGA_CADA = process.env.LIGA_CADA === undefined ? CADA_MS : Number(process.env.LIGA_CADA);
+const LIGA_TANDA = Number(process.env.LIGA_TANDA || POR_TANDA);
+if (LIGA_CADA > 0) {
+  let jugando = false;
+  setInterval(async () => {
+    if (jugando) return;
+    jugando = true;
+    try {
+      for (const p of await jugarTanda(db, { cuantos: LIGA_TANDA, ceder: () => new Promise((ok) => setImmediate(ok)) })) {
+        console.log(p.trabado ? `[liga] trabado (${p.motivo}, no se anota): ${p.azul} vs ${p.rojo}` : `[liga] ${p.azul} ${p.goles[0]}-${p.goles[1]} ${p.rojo}${p.oro ? ' (oro)' : ''} Elo ${p.cambio.join('/')} · ${p.cuadros} cuadros, ${p.ms} ms`);
+      }
+    } catch (e) { console.log('[liga] error', e); }
+    jugando = false;
+  }, LIGA_CADA);
+}
 
 http.listen(PUERTO, '127.0.0.1', () => console.log(`Potrero 404 en http://127.0.0.1:${PUERTO}${LAG ? ` (lag simulado ${LAG} ms)` : ''}`));

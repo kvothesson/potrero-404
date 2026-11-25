@@ -10,6 +10,8 @@ import { api, crearFila, cabecerasCors } from "../../server/api.js";
 import { preparar, verificar, elegirIA, anotar } from "../../server/ranking.js";
 // @ts-ignore
 import { mailResend } from "../../server/cuentas.js";
+// @ts-ignore
+import { prepararLiga, jugarTanda, CADA_MS } from "../../server/liga.js";
 
 // SAL, RESEND y TURNSTILE son secretos: se suben con `cf deploy --secrets-file` (ver README).
 type Env = { DB: any; SAL?: string; RESEND?: string; TURNSTILE?: string; METRICAS?: string };
@@ -33,7 +35,7 @@ function base(env: Env) {
 let preparada = false;
 async function db(env: Env) {
 	const d = base(env);
-	if (!preparada) { await preparar(d); preparada = true; }
+	if (!preparada) { await preparar(d); await prepararLiga(d); preparada = true; }
 	return d;
 }
 
@@ -89,6 +91,30 @@ export class Fila extends DurableObject<Env> {
 	async codigo(): Promise<string> { return this.buscar(Date.now()); }
 }
 
+// La liga de IAs: un solo Durable Object que se despierta con su alarma cada CADA_MS (10 min),
+// juega una tanda de partidos entre IAs y vuelve a programarse. Va en un DO y no en un cron
+// porque un cron del plan gratis tiene 10 ms de CPU y un partido cuesta ~70 ms; el DO tiene
+// 30 s por invocación. Además no gasta uno de los 5 crons de la cuenta.
+// La alarma se arranca sola la primera vez que alguien pide /ranking o /liga (asegurar()).
+export class Liga extends DurableObject<Env> {
+	async asegurar(): Promise<number> {
+		const hay = await this.ctx.storage.getAlarm();
+		if (hay) return hay;
+		const cuando = Date.now() + 5000;
+		await this.ctx.storage.setAlarm(cuando);
+		return cuando;
+	}
+	async alarm() {
+		// primero la próxima: si la tanda falla, la cadena no se corta
+		await this.ctx.storage.setAlarm(Date.now() + CADA_MS);
+		// base() sin preparar(): las tablas ya las creó el Worker antes de arrancar la alarma, y así
+		// la tanda usa ~17 consultas de las 50 por invocación que da D1 en el plan gratis
+		const hechos = await jugarTanda(base(this.env));
+		console.log(JSON.stringify({ liga: hechos }));
+	}
+}
+let ligaAsegurada = false;
+
 export default {
 	async fetch(req: Request, env: Env, ctx: any): Promise<Response> {
 		const url = new URL(req.url);
@@ -101,6 +127,11 @@ export default {
 		}
 		const fila = ctx.exports.Fila.get(ctx.exports.Fila.idFromName("global"));
 		if (!(env.SAL && env.RESEND) && ['/mail', '/entrar'].includes(url.pathname)) return new Response(JSON.stringify({ error: 'sinConfigurar' }), { status: 503, headers: { 'content-type': 'application/json', ...cabecerasCors(req) } });
+		if (!ligaAsegurada && ["/ranking", "/liga"].includes(url.pathname)) {
+			ligaAsegurada = true;
+			const liga = ctx.exports.Liga.get(ctx.exports.Liga.idFromName("global"));
+			ctx.waitUntil(liga.asegurar().catch(() => { ligaAsegurada = false; }));
+		}
 		const r = await api(req, { db: await db(env), buscar: () => fila.codigo(), cuentas: cuentas(env) });
 		if (r) return r;
 		return new Response("Potrero 404: servidor de salas. El juego está en https://kvothesson.com/potrero-404/", {

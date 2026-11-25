@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS jugadores (
   llave_hash TEXT,
   es_ia INTEGER NOT NULL DEFAULT 0,
   nivel INTEGER NOT NULL DEFAULT 0,
+  estilo TEXT,
   elo INTEGER NOT NULL DEFAULT 1000,
   partidas INTEGER NOT NULL DEFAULT 0,
   victorias INTEGER NOT NULL DEFAULT 0,
@@ -38,17 +39,19 @@ CREATE TABLE IF NOT EXISTS partidas (
 );
 `;
 
-// IAs: cada una con su nivel (cómo maneja el bot) y un Elo de arranque que después se ajusta solo.
+// IAs: cada una con su fuerza (nivel 1 a 8) y su forma de jugar (estilo, ver ESTILOS en src/bot.js),
+// con las mismas reglas que un humano: reaccionan con 200 a 267 ms de retraso y aprietan las mismas teclas.
+// El Elo arranca según el nivel y después se ajusta solo. Los ids y nombres no se tocan: tienen historia.
 // Nombres del Universo Austral (expansión: los corredores de la Ruta 404).
 export const IAS = [
-  { id: 'ia-1', nombre: 'Chatarra', nivel: 1 },
-  { id: 'ia-2', nombre: 'Ternero Diesel', nivel: 2 },
-  { id: 'ia-3', nombre: 'Luz de Chacra', nivel: 3 },
-  { id: 'ia-4', nombre: 'Pombero 2.0', nivel: 4 },
-  { id: 'ia-5', nombre: 'Lobizon V8', nivel: 5 },
-  { id: 'ia-6', nombre: 'Gaucho de Ferrita', nivel: 6 },
-  { id: 'ia-7', nombre: 'Tanque Nandu', nivel: 7 },
-  { id: 'ia-8', nombre: 'Silencio con Dientes', nivel: 8 },
+  { id: 'ia-1', nombre: 'Chatarra', nivel: 1, estilo: 'perseguidor' },
+  { id: 'ia-2', nombre: 'Ternero Diesel', nivel: 2, estilo: 'choque' },
+  { id: 'ia-3', nombre: 'Luz de Chacra', nivel: 3, estilo: 'arquero' },
+  { id: 'ia-4', nombre: 'Pombero 2.0', nivel: 4, estilo: 'pared' },
+  { id: 'ia-5', nombre: 'Lobizon V8', nivel: 5, estilo: 'nitro' },
+  { id: 'ia-6', nombre: 'Gaucho de Ferrita', nivel: 6, estilo: 'gambeta' },
+  { id: 'ia-7', nombre: 'Tanque Nandu', nivel: 7, estilo: 'contra' },
+  { id: 'ia-8', nombre: 'Silencio con Dientes', nivel: 8, estilo: 'completo' },
 ];
 const ELO_INICIAL = 1000;
 
@@ -62,9 +65,14 @@ export function limpiarNombre(n) {
 
 export async function preparar(db) {
   for (const sql of (ESQUEMA + ESQUEMA_CUENTAS + ESQUEMA_METRICAS).split(';').map((x) => x.trim()).filter(Boolean)) await db.correr(sql);
+  // columna estilo (2026-11-24): en una base vieja no está; si ya está, el ALTER falla y se sigue
+  try { await db.correr(`ALTER TABLE jugadores ADD COLUMN estilo TEXT`); } catch { /* ya existe */ }
   for (const ia of IAS) {
-    await db.correr(`INSERT OR IGNORE INTO jugadores (id, nombre, es_ia, nivel, elo, creado, actualizado) VALUES (?, ?, 1, ?, ?, ?, ?)`,
-      ia.id, ia.nombre, ia.nivel, 700 + ia.nivel * 75, ahora(), ahora());
+    await db.correr(`INSERT OR IGNORE INTO jugadores (id, nombre, es_ia, nivel, estilo, elo, creado, actualizado) VALUES (?, ?, 1, ?, ?, ?, ?, ?)`,
+      ia.id, ia.nombre, ia.nivel, ia.estilo, 700 + ia.nivel * 75, ahora(), ahora());
+    // las IAs que ya existían toman su nivel y estilo; Elo, partidas y victorias quedan como estaban
+    await db.correr(`UPDATE jugadores SET nivel = ?, estilo = ? WHERE id = ? AND es_ia = 1 AND (nivel IS NOT ? OR estilo IS NOT ?)`,
+      ia.nivel, ia.estilo, ia.id, ia.nivel, ia.estilo);
   }
 }
 
@@ -114,7 +122,7 @@ export async function tabla(db, yo, limite = 50) {
 
 // La IA de Elo más parecido al tuyo (entre las tres más cercanas, al azar, para variar).
 export async function elegirIA(db, elo) {
-  const filas = await db.todas(`SELECT id, nombre, nivel, elo FROM jugadores WHERE es_ia = 1 ORDER BY ABS(elo - ?) LIMIT 3`, elo);
+  const filas = await db.todas(`SELECT id, nombre, nivel, estilo, elo FROM jugadores WHERE es_ia = 1 ORDER BY ABS(elo - ?) LIMIT 3`, elo);
   return filas[Math.floor(Math.random() * filas.length)] || null;
 }
 

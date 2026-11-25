@@ -125,7 +125,7 @@ export function crearSala({ fisica, rankeada = false, pedirIA = null, alTerminar
     Promise.resolve(pedirIA(humano.jugador ? humano.jugador.elo : 1000)).then((ia) => {
       pidiendoIA = false;
       if (!ia || lugares[libre] || humanos() !== 1) return;
-      lugares[libre] = { ia: true, lado: libre, jugador: { id: ia.id, nombre: ia.nombre, elo: ia.elo }, pensar: crearBot(libre, ia.nivel) };
+      lugares[libre] = { ia: true, lado: libre, jugador: { id: ia.id, nombre: ia.nombre, elo: ia.elo }, pensar: crearBot(libre, ia.nivel, ia.estilo) };
       empezar();
       avisarSala();
     }).catch(() => { pidiendoIA = false; });

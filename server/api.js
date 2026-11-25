@@ -5,9 +5,11 @@
 //   GET  /buscar                 → {codigo}: la sala rankeada a la que entrar (con alguien esperando, o nueva)
 //   POST /mail {mail}            → manda un código de 6 números a ese mail
 //   POST /entrar {google | mail+codigo, id?, llave?, nombre?} → {id, llave, nombre} (ver server/cuentas.js)
+//   GET  /liga                   → {ultimos, porDia, ias, ritmo}: la liga de IAs (ver server/liga.js)
 import { registrar, verificar, tabla } from './ranking.js';
 import { pedirCodigo, entrar, cuentasDe, dentroDelLimite, verificarHumano } from './cuentas.js';
 import { sumar, resumen } from './metricas.js';
+import { resumenLiga } from './liga.js';
 
 const ORIGENES = ['https://kvothesson.com'];
 export function cabecerasCors(req) {
@@ -24,7 +26,7 @@ const json = (req, datos, status = 200) => new Response(JSON.stringify(datos), {
 // Devuelve una Response si la ruta es de la API, o null si no.
 export async function api(req, { db, buscar, cuentas }) {
   const url = new URL(req.url);
-  const rutas = ['/registro', '/yo', '/ranking', '/buscar', '/mail', '/entrar', '/evento', '/metricas'];
+  const rutas = ['/registro', '/yo', '/ranking', '/buscar', '/mail', '/entrar', '/evento', '/metricas', '/liga'];
   if (!rutas.includes(url.pathname)) return null;
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cabecerasCors(req) });
   // la conexión: en Cloudflare viene en CF-Connecting-IP; en la PC es siempre la misma
@@ -55,6 +57,7 @@ export async function api(req, { db, buscar, cuentas }) {
       return json(req, r, r.error ? 400 : 200);
     }
     if (url.pathname === '/ranking') return json(req, { ...(await tabla(db, url.searchParams.get('yo'))), entrar: !!cuentas?.listo });
+    if (url.pathname === '/liga') return json(req, await resumenLiga(db, Math.max(1, Math.min(50, Number(url.searchParams.get('n')) || 20))));
     if (url.pathname === '/buscar') return json(req, { codigo: await buscar() });
     // métricas: el navegador manda eventos sueltos (como texto, para no pedir permiso CORS antes)
     if (url.pathname === '/evento' && req.method === 'POST') {
