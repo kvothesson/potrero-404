@@ -766,17 +766,25 @@ export function crearPintor(canvas, opciones = {}) {
       // cuántas filas entran: parado 14, acostado menos (dejando lugar a tu fila y al botón de volver)
       const y0 = BW > BH ? 40 : 52, entran = Math.max(5, Math.floor((BH - y0 - 58) / 15));
       const filas = d.lista.slice(0, entran);
+      const propio = d.propio || (d.lista.slice(entran).find((f) => f.yo));
+      // columnas desde la derecha, medidas con lo más largo que se muestra (6 px por letra):
+      // ganados/jugados, el trofeo y el Elo; el nombre se recorta si no entra
+      const todas = propio ? [...filas, propio] : filas;
+      const wRec = Math.max(...todas.map((f) => `${f.victorias}/${f.partidas}`.length)) * 6;
+      const wElo = Math.max(...todas.map((f) => String(f.elo).length)) * 6;
+      const xTrofeo = BW - 12 - wRec - 12, xElo = xTrofeo - 4;
       const fila = (f, y) => {
         if (f.yo) { b.fillStyle = '#3a6a5a'; b.fillRect(8, y - 3, BW - 16, 13); }
         texto(b, f.puesto, 30, y, { alinear: 'der', color: f.puesto <= 3 ? '#ffd040' : '#9890c0' });
         if (f.ia) icono(b, 'robot', 36, y - 1);
-        texto(b, f.nombre, f.ia ? 48 : 38, y, { color: f.yo ? '#ffffff' : '#e8e4ff' });
-        texto(b, f.elo, BW - 56, y, { alinear: 'der', color: '#fff4b0' });
-        icono(b, 'trofeo', BW - 52, y - 1);
+        const xNombre = f.ia ? 48 : 38, entra = Math.max(3, Math.floor((xElo - wElo - 8 - xNombre) / 6));
+        const nombre = f.nombre.length > entra ? f.nombre.slice(0, entra - 1) + '.' : f.nombre;
+        texto(b, nombre, xNombre, y, { color: f.yo ? '#ffffff' : '#e8e4ff' });
+        texto(b, f.elo, xElo, y, { alinear: 'der', color: '#fff4b0' });
+        icono(b, 'trofeo', xTrofeo, y - 1);
         texto(b, `${f.victorias}/${f.partidas}`, BW - 12, y, { alinear: 'der', color: '#9890c0' });
       };
       filas.forEach((f, k) => fila(f, y0 + k * 15));
-      const propio = d.propio || (d.lista.slice(entran).find((f) => f.yo));
       if (propio) { b.fillStyle = '#5a5480'; b.fillRect(20, y0 + entran * 15 + 2, BW - 40, 1); fila(propio, y0 + (entran + 1) * 15); }
     }
     boton('menu', 8, BH - 28, 24, 20, GRIS, (x, yy) => icono(b, 'casa', x + 7, yy + 5));
