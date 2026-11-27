@@ -19,13 +19,17 @@ function origen() {
   // ?de=yt (o cualquier marca corta) en el link: para saber de qué video o página llegó la gente
   const de = (new URLSearchParams(location.search).get('de') || '').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 12);
   if (de) return 'de-' + de;
-  let ref = '';
-  try { ref = window.top !== window.self ? document.referrer : ''; } catch { ref = document.referrer; }
-  if (!ref) return 'directo';
-  if (/itch\.(io|zone)/.test(ref)) return 'itch';
-  if (/gamejolt\.(com|net)/.test(ref)) return 'gamejolt';
-  if (/newgrounds\.com|ungrounded\.net/.test(ref)) return 'newgrounds';
-  return 'otro';
+  let embebido = true;
+  try { embebido = window.top !== window.self; } catch { /* iframe de otro dominio */ }
+  let host = '';
+  try { host = new URL(document.referrer).hostname.toLowerCase().replace(/^www\./, ''); } catch { /* sin referrer */ }
+  if (!host || host === location.hostname) return 'directo';
+  if (/itch\.(io|zone)$/.test(host)) return 'itch';
+  if (/gamejolt\.(com|net)$/.test(host)) return 'gamejolt';
+  if (/newgrounds\.com$|ungrounded\.net$/.test(host)) return 'newgrounds';
+  // el dominio (solo el dominio, nunca la ruta): "en-" si nos muestra dentro de su página, "ref-" si trae un link
+  host = host.replace(/[^a-z0-9.-]/g, '').slice(0, 40);
+  return host ? (embebido ? 'en-' : 'ref-') + host : 'otro';
 }
 
 export function evento(e) {

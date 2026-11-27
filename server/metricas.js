@@ -39,6 +39,8 @@ export function clave(e) {
     case 'origen': {
       // marcas propias de los links (?de=yt): cortas, solo letras, números y guion
       if (typeof e.de === 'string' && /^de-[a-z0-9-]{1,12}$/.test(e.de)) return `origen:${e.de}`;
+      // dominio de la página que nos embebe (en-) o que trae el link (ref-)
+      if (typeof e.de === 'string' && /^(en|ref)-[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(e.de) && e.de.length <= 44) return `origen:${e.de}`;
       const o = de(['directo', 'itch', 'gamejolt', 'newgrounds', 'otro'], e.de); return o ? `origen:${o}` : null;
     }
     case 'comparte': { const q = de(['sala', 'resultado', 'instalada'], e.que); return q ? `comparte:${q}` : null; }
