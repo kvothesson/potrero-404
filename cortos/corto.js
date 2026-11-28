@@ -266,4 +266,120 @@ async function filmar({ corredor, rival, semilla, partes, prefijo, juegoAntes = 
   }
   return { cuadros: total, golEn, desde };
 }
-window.corto = { cuadro, guardar, filmar, CORREDORES };
+// ---------- molde "una mecánica, un número" (aprendido de Corner Cutters, 27/11) ----------
+// Arranca en plena jugada, un texto grande por idea, el número real medido en la simulación, sin lore.
+// La velocidad se pasa a km/h con la escala de Rocket League que usa sim.js (1 uu = 1 cm, UU px por uu).
+const UU = 9.4 / 2300, KMH = (v) => Math.round(v / UU * 0.036);
+let demoCache = null;
+const ZOOM_Y = 210;   // recorte de y=210 a 450: el auto seguido anda entre y=300 y 360 del lienzo
+function prepararDemo({ a, b, semilla, atac, antes = 2.5 }) {
+  const canvas = document.getElementById('juego');
+  if (!pintor) pintor = crearPintor(canvas, { cancha: 'ruta404' });
+  const ca = CORREDORES[a], cb = CORREDORES[b];
+  const nuevo = () => {
+    const azar = Math.random; Math.random = rng(semilla); const s = nuevoEstado(); Math.random = azar;
+    return { s, bots: [crearBot(0, ca.nivel, ca.estilo, { semilla }), crearBot(1, cb.nivel, cb.estilo, { semilla: semilla + 1 })] };
+  };
+  const extra = { pantalla: 'bot', seguir: atac, red: { nombres: [a, b], listo: true, jugadores: 2, lado: -1 } };
+  // 1) simular entero y anotar cuándo pasa todo, con la velocidad de antes de cada paso
+  const vel = [];
+  let { s, bots } = nuevo(), demoN = -1, golN = -1, kmhDemo = 0;
+  for (let n = 0; n < 60 * 60 * 6 && s.fase !== 'fin' && golN < 0; n++) {
+    const v = Math.hypot(s.autos[atac].vx, s.autos[atac].vy); vel.push(v);
+    paso(s, [bots[0](s), bots[1](s)]);
+    for (const e of s.eventos) {
+      if (e.t === 'aplastado' && e.demolicion && e.quien !== atac && demoN < 0) { demoN = n; kmhDemo = KMH(v); }
+      if (e.t === 'gol' && e.quien === atac && demoN >= 0) golN = n;
+    }
+  }
+  if (demoN < 0 || golN < 0) throw new Error('esa semilla no tiene demolición y gol');
+  // 2) de nuevo, dibujando cada 2 pasos (30 cuadros por segundo) desde `antes` segundos antes del choque
+  const desde = demoN - Math.round(antes * 60), hasta = golN + 150;
+  ({ s, bots } = nuevo());
+  const cuadros = [];
+  for (let n = 0; n <= hasta && s.fase !== 'fin'; n++) {
+    const v = Math.hypot(s.autos[atac].vx, s.autos[atac].vy);
+    paso(s, [bots[0](s), bots[1](s)]);
+    if (n >= desde - 120) pintor.dibujar(s, extra);
+    if (n >= desde && (n - desde) % 2 === 0) {
+      const c = document.createElement('canvas'); c.width = W; c.height = H;
+      const cc = c.getContext('2d'); cc.imageSmoothingEnabled = false; cc.drawImage(canvas, 0, 0, W, H);
+      cuadros.push({ c, n, kmh: KMH(v) });
+    }
+  }
+  demoCache = { a, b, atac, semilla, desde, demoN, golN, kmhDemo, cuadros };
+  return { demoN, golN, kmhDemo, tras: (golN - demoN) / 60, cuadros: cuadros.length };
+}
+// Guion del video, en segundos: jugada hasta el choque, congelado, carrera al arco vacío, gol, repetición lenta, cierre.
+function guionDemo() {
+  const d = demoCache, iDemo = Math.round((d.demoN - d.desde) / 2), iGol = Math.round((d.golN - d.desde) / 2);
+  const P = [];
+  let t = 0;
+  const parte = (tipo, dura, extra = {}) => { P.push({ tipo, desde: t, hasta: t + dura, ...extra }); t += dura; };
+  parte('llega', iDemo / 30);
+  parte('congela', 0.6);
+  parte('arco', (iGol - iDemo) / 30);
+  parte('gol', 1.0);
+  parte('lento', 2.4, { i0: iDemo - 18, i1: iDemo + 6 });   // 0,8 s de juego a un tercio
+  parte('cierre', 1.6);
+  return { P, total: t, iDemo, iGol };
+}
+const blanco = (txt, y, esc, color = '#fff', sombra = '#000') => texto(g, txt, W / 2, y, { esc, alinear: 'centro', color, sombra });
+function franja(y, h, a = 0.62) { g.fillStyle = `rgba(4,2,12,${a})`; g.fillRect(0, y, W, h); }
+function velocimetro(kmh, y = 40, rojo = false) {
+  franja(y - 8, 44);
+  blanco(`${kmh} km/h`, y, 4, rojo ? '#ff6a5a' : '#fff4b0', rojo ? '#5a0a10' : '#6a3a08');
+}
+function cuadroDemo(t) {
+  const d = demoCache, { P, iDemo, iGol } = guionDemo();
+  const p = P.find((x) => t >= x.desde && t < x.hasta) || P[P.length - 1];
+  const tl = t - p.desde, f = Math.floor(tl * 30);
+  const cl = (i) => Math.max(0, Math.min(d.cuadros.length - 1, i));
+  // cámara al doble (escala entera): recorte de 135x240 alrededor del auto que sigue la cámara
+  const ver = (i) => { g.imageSmoothingEnabled = false; g.drawImage(d.cuadros[cl(i)].c, W / 4, ZOOM_Y, W / 2, H / 2, 0, 0, W, H); };
+  const quien = [d.a, d.b][d.atac], otro = [d.a, d.b][1 - d.atac];
+  const vivo = (i) => d.cuadros[cl(i)].kmh;
+  if (p.tipo === 'llega') {
+    ver(f); velocimetro(vivo(f));
+    franja(404, 34); blanco(`${quien} va a pegar de frente`, 414, 1, '#c8c2ea', null);
+  } else if (p.tipo === 'congela') {
+    ver(iDemo + 2);
+    if (f < 3) { g.fillStyle = `rgba(255,255,255,${0.75 - f * 0.25})`; g.fillRect(0, 0, W, H); }
+    velocimetro(d.kmhDemo, 40, true);
+    franja(200, 40); blanco('demolición', 206, 3, '#fff', '#7a1010');
+  } else if (p.tipo === 'arco') {
+    ver(iDemo + f);
+    const queda = Math.max(0, 3 - f / 30);
+    franja(26, 36); blanco('el arco queda solo', 36, 2, '#fff', '#000');
+    franja(404, 34); blanco(`${otro} vuelve en ${queda.toFixed(1).replace('.', ',')} s`, 414, 1, '#c8c2ea', null);
+  } else if (p.tipo === 'gol') {
+    ver(iGol + f);
+    // debajo del cartel del marcador que muestra el propio juego
+    franja(136, 50); blanco('gol', 142, 3, '#7cf09a', '#0a3a1a');
+    blanco(`${((d.golN - d.demoN) / 60).toFixed(1).replace('.', ',')} s después del choque`, 170, 1, '#e8e4ff', null);
+  } else if (p.tipo === 'lento') {
+    const i = p.i0 + Math.floor((tl / (p.hasta - p.desde)) * (p.i1 - p.i0));
+    ver(i);
+    velocimetro(vivo(i), 40, i >= iDemo);
+    franja(404, 34); blanco('otra vez, a un tercio de velocidad', 414, 1, '#c8c2ea', null);
+  } else {
+    ver(iGol + 12);   // quieto en el festejo, antes de que el juego muestre la cuenta del saque
+    g.fillStyle = 'rgba(4,2,12,.72)'; g.fillRect(0, 0, W, H);
+    blanco('potrero 404', 176, 3, '#fff4b0', '#7a2a10');
+    blanco('fútbol con autos', 210, 2, '#fff', '#000');
+    blanco('gratis en el navegador', 232, 1, '#c8c2ea', null);
+    blanco('kvothesson.com/potrero-404', 290, 1, '#ffb030', null);
+    blanco('partido real entre ias del juego', 456, 1, '#4f4880', null);
+  }
+}
+async function filmarDemo(prefijo) {
+  const { total } = guionDemo(), n = Math.round(total * 30);
+  for (let f = 0; f < n; f++) {
+    cuadroDemo(f / 30);
+    const r = await fetch(`/captura?n=${prefijo}_${String(f).padStart(5, '0')}`, { method: 'POST', body: lienzo.toDataURL('image/png') });
+    if (!r.ok) throw new Error('no se pudo guardar el cuadro ' + f);
+  }
+  return { cuadros: n, segundos: total };
+}
+
+window.corto = { cuadro, guardar, filmar, CORREDORES, prepararDemo, guionDemo, cuadroDemo, filmarDemo };
