@@ -366,7 +366,7 @@ function cuadroDemo(t) {
     ver(iGol + 12);   // quieto en el festejo, antes de que el juego muestre la cuenta del saque
     g.fillStyle = 'rgba(4,2,12,.72)'; g.fillRect(0, 0, W, H);
     blanco('potrero 404', 176, 3, '#fff4b0', '#7a2a10');
-    blanco('fútbol con autos', 210, 2, '#fff', '#000');
+    blanco('picado en la ruta 404', 210, 2, '#fff', '#000');
     blanco('gratis en el navegador', 232, 1, '#c8c2ea', null);
     blanco('kvothesson.com/potrero-404', 290, 1, '#ffb030', null);
     blanco('partido real entre ias del juego', 456, 1, '#4f4880', null);
